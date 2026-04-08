@@ -1,8 +1,6 @@
 import { TRPCError } from "@trpc/server";
-import { verifyOrgAdmin, verifyOrgMembership } from "../integration/utils";
 
 type ResourceErrorCode = "BAD_REQUEST" | "FORBIDDEN" | "NOT_FOUND";
-type OrgAccessLevel = "admin" | "member";
 
 export type OrgScopedResource = {
 	organizationId: string;
@@ -35,21 +33,14 @@ export async function requireOrgScopedResource<T extends OrgScopedResource>(
 }
 
 type RequireOrgResourceAccessOptions = RequireOrgScopedResourceOptions & {
-	access?: OrgAccessLevel;
+	access?: "admin" | "member";
 };
 
 export async function requireOrgResourceAccess<T extends OrgScopedResource>(
-	userId: string,
+	_userId: string,
 	resolveResource: () => Promise<T | null | undefined>,
 	options: RequireOrgResourceAccessOptions,
 ): Promise<T> {
-	const resource = await requireOrgScopedResource(resolveResource, options);
-
-	if (options.access === "admin") {
-		await verifyOrgAdmin(userId, resource.organizationId);
-	} else {
-		await verifyOrgMembership(userId, resource.organizationId);
-	}
-
-	return resource;
+	// Local-only mode: no org membership checks
+	return requireOrgScopedResource(resolveResource, options);
 }

@@ -3,12 +3,12 @@ import { eq } from "@tanstack/db";
 import { useLiveQuery } from "@tanstack/react-db";
 import { useFeatureFlagEnabled } from "posthog-js/react";
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { authClient } from "renderer/lib/auth-client";
 import { electronTrpc } from "renderer/lib/electron-trpc";
 import { useCreateWorkspace } from "renderer/react-query/workspaces/useCreateWorkspace";
 import { useDeleteWorkspace } from "renderer/react-query/workspaces/useDeleteWorkspace";
 import { useUpdateWorkspace } from "renderer/react-query/workspaces/useUpdateWorkspace";
 import { useCollections } from "renderer/routes/_authenticated/providers/CollectionsProvider/CollectionsProvider";
+import { MOCK_ORG_ID } from "shared/constants";
 import { executeTool, type ToolContext } from "./tools";
 
 const COMMAND_PERSIST_RETRY_MS = 1_000;
@@ -22,7 +22,6 @@ interface ResolvedCommandState {
 
 export function useCommandWatcher() {
 	const { data: deviceInfo } = electronTrpc.auth.getDeviceInfo.useQuery();
-	const { data: session } = authClient.useSession();
 	const collections = useCollections();
 	const isMountedRef = useRef(true);
 	const handledCommandsRef = useRef(new Set<string>());
@@ -33,11 +32,11 @@ export function useCommandWatcher() {
 		new Map<string, ReturnType<typeof setTimeout>>(),
 	);
 
-	const organizationId = session?.session?.activeOrganizationId;
+	const organizationId = MOCK_ORG_ID;
 	const remoteAgentDisabled = useFeatureFlagEnabled(
 		FEATURE_FLAGS.DISABLE_REMOTE_AGENT,
 	);
-	const shouldWatch = !!deviceInfo && !!organizationId && !remoteAgentDisabled;
+	const shouldWatch = !!deviceInfo && !remoteAgentDisabled;
 
 	const createWorktree = useCreateWorkspace({ skipNavigation: true });
 	const setActive = electronTrpc.workspaces.setActive.useMutation();

@@ -2,6 +2,7 @@ import { dbWs } from "@superset/db/client";
 import { agentCommands, commandStatusValues } from "@superset/db/schema";
 import { getCurrentTxid } from "@superset/db/utils";
 import { TRPCError, type TRPCRouterRecord } from "@trpc/server";
+// TRPCError kept for NOT_FOUND usage below
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { protectedProcedure } from "../../trpc";
@@ -21,14 +22,7 @@ export const agentRouter = {
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
-			const organizationId = ctx.session.session.activeOrganizationId;
-			if (!organizationId) {
-				throw new TRPCError({
-					code: "BAD_REQUEST",
-					message: "No active organization selected",
-				});
-			}
-
+			const organizationId = "mock-org-id";
 			const { id, ...changes } = input;
 
 			const result = await dbWs.transaction(async (tx) => {

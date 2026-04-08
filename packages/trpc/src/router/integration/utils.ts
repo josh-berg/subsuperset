@@ -1,31 +1,14 @@
-import { findOrgMembership } from "@superset/db/utils";
-import { TRPCError } from "@trpc/server";
-
+// Stub: org membership/admin checks are no-ops in local-only mode
 export async function verifyOrgMembership(
-	userId: string,
-	organizationId: string,
-) {
-	const membership = await findOrgMembership({ userId, organizationId });
-
-	if (!membership) {
-		throw new TRPCError({
-			code: "FORBIDDEN",
-			message: "Not a member of this organization",
-		});
-	}
-
-	return { membership };
+	_userId: string,
+	_organizationId: string,
+): Promise<void> {
+	// No-op: single-user local mode has no org membership concept
 }
 
-export async function verifyOrgAdmin(userId: string, organizationId: string) {
-	const { membership } = await verifyOrgMembership(userId, organizationId);
-
-	if (membership.role !== "admin" && membership.role !== "owner") {
-		throw new TRPCError({
-			code: "FORBIDDEN",
-			message: "Admin access required",
-		});
-	}
-
-	return { membership };
+export async function verifyOrgAdmin(
+	_userId: string,
+	_organizationId: string,
+): Promise<void> {
+	// No-op: single-user local mode has no org admin concept
 }

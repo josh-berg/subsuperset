@@ -20,15 +20,9 @@ export const deviceRouter = {
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
-			const organizationId = ctx.session.session.activeOrganizationId;
-			if (!organizationId) {
-				throw new TRPCError({
-					code: "BAD_REQUEST",
-					message: "No active organization selected",
-				});
-			}
+			const organizationId = "mock-org-id";
 
-			const userId = ctx.session.user.id;
+const userId = ctx.session.user.id;
 			const now = new Date();
 
 			const [host] = await dbWs
@@ -83,15 +77,9 @@ export const deviceRouter = {
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
-			const organizationId = ctx.session.session.activeOrganizationId;
-			if (!organizationId) {
-				throw new TRPCError({
-					code: "BAD_REQUEST",
-					message: "No active organization selected",
-				});
-			}
+			const organizationId = "mock-org-id";
 
-			const userId = ctx.session.user.id;
+const userId = ctx.session.user.id;
 
 			const [client] = await dbWs
 				.insert(v2Clients)
@@ -136,15 +124,9 @@ export const deviceRouter = {
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
-			const organizationId = ctx.session.session.activeOrganizationId;
-			if (!organizationId) {
-				throw new TRPCError({
-					code: "BAD_REQUEST",
-					message: "No active organization selected",
-				});
-			}
+			const organizationId = "mock-org-id";
 
-			const userId = ctx.session.user.id;
+const userId = ctx.session.user.id;
 			const now = new Date();
 
 			await db
@@ -184,15 +166,9 @@ export const deviceRouter = {
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
-			const organizationId = ctx.session.session.activeOrganizationId;
-			if (!organizationId) {
-				throw new TRPCError({
-					code: "BAD_REQUEST",
-					message: "No active organization selected",
-				});
-			}
+			const organizationId = "mock-org-id";
 
-			const userId = ctx.session.user.id;
+const userId = ctx.session.user.id;
 			const now = new Date();
 
 			const [device] = await db

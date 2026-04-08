@@ -1,11 +1,5 @@
-import { apiKeyClient } from "@better-auth/api-key/client";
-import { stripeClient } from "@better-auth/stripe/client";
 import type { auth } from "@superset/auth/server";
-import {
-	customSessionClient,
-	jwtClient,
-	organizationClient,
-} from "better-auth/client/plugins";
+import { customSessionClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 import { env } from "renderer/env.renderer";
 
@@ -19,14 +13,9 @@ export function getAuthToken(): string | null {
 	return authToken;
 }
 
-let jwt: string | null = null;
-
-export function setJwt(token: string | null) {
-	jwt = token;
-}
-
+// Stub: JWT no longer used (Electric SQL will be replaced in Phase 3)
 export function getJwt(): string | null {
-	return jwt;
+	return null;
 }
 
 /**
@@ -37,25 +26,13 @@ export function getJwt(): string | null {
  */
 export const authClient = createAuthClient({
 	baseURL: env.NEXT_PUBLIC_API_URL,
-	plugins: [
-		organizationClient(),
-		customSessionClient<typeof auth>(),
-		stripeClient({ subscription: true }),
-		apiKeyClient(),
-		jwtClient(),
-	],
+	plugins: [customSessionClient<typeof auth>()],
 	fetchOptions: {
 		credentials: "include",
 		onRequest: async (context) => {
 			const token = getAuthToken();
 			if (token) {
 				context.headers.set("Authorization", `Bearer ${token}`);
-			}
-		},
-		onResponse: async (context) => {
-			const token = context.response.headers.get("set-auth-jwt");
-			if (token) {
-				setJwt(token);
 			}
 		},
 	},

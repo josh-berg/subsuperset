@@ -2,8 +2,6 @@ import { eq } from "@tanstack/db";
 import { useLiveQuery } from "@tanstack/react-db";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
-import { env } from "renderer/env.renderer";
-import { authClient } from "renderer/lib/auth-client";
 import { electronTrpc } from "renderer/lib/electron-trpc";
 import { useDashboardSidebarState } from "renderer/routes/_authenticated/hooks/useDashboardSidebarState";
 import { useCollections } from "renderer/routes/_authenticated/providers/CollectionsProvider";
@@ -21,19 +19,12 @@ import type {
 const PENDING_WORKSPACE_TAB_ORDER = Number.MAX_SAFE_INTEGER;
 
 export function useDashboardSidebarData() {
-	const { data: session } = authClient.useSession();
 	const collections = useCollections();
 	const { services } = useHostService();
 	const { toggleProjectCollapsed } = useDashboardSidebarState();
 	const { data: deviceInfo } = electronTrpc.auth.getDeviceInfo.useQuery();
 	const pendingWorkspace = usePendingWorkspace();
-	const activeOrganizationId = env.SKIP_ENV_VALIDATION
-		? MOCK_ORG_ID
-		: (session?.session?.activeOrganizationId ?? null);
-	const activeHostService =
-		activeOrganizationId !== null
-			? (services.get(activeOrganizationId) ?? null)
-			: null;
+	const activeHostService = services.get(MOCK_ORG_ID) ?? null;
 
 	const { data: rawSidebarProjects = [] } = useLiveQuery(
 		(q) =>
@@ -135,12 +126,7 @@ export function useDashboardSidebarData() {
 	);
 
 	const { data: pullRequestData, refetch: refetchPullRequests } = useQuery({
-		queryKey: [
-			"dashboard-sidebar",
-			"pull-requests",
-			activeOrganizationId,
-			localWorkspaceIds,
-		],
+		queryKey: ["dashboard-sidebar", "pull-requests", localWorkspaceIds],
 		enabled: activeHostService !== null && localWorkspaceIds.length > 0,
 		refetchInterval: 10_000,
 		queryFn: () =>

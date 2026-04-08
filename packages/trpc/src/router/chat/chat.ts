@@ -7,6 +7,8 @@ import { z } from "zod";
 import { protectedProcedure } from "../../trpc";
 import { uploadChatAttachment } from "./utils/upload-chat-attachment";
 
+const MOCK_ORG_ID = "mock-org-id";
+
 const AVAILABLE_MODELS = [
 	{
 		id: "anthropic/claude-opus-4-6",
@@ -48,20 +50,11 @@ export const chatRouter = {
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
-			const organizationId = ctx.session.session.activeOrganizationId;
-
-			if (!organizationId) {
-				throw new TRPCError({
-					code: "FORBIDDEN",
-					message: "No active organization selected",
-				});
-			}
-
 			await db
 				.insert(chatSessions)
 				.values({
 					id: input.sessionId,
-					organizationId,
+					organizationId: MOCK_ORG_ID,
 					createdBy: ctx.session.user.id,
 					v2WorkspaceId: input.v2WorkspaceId,
 				})
@@ -80,15 +73,6 @@ export const chatRouter = {
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
-			const organizationId = ctx.session.session.activeOrganizationId;
-
-			if (!organizationId) {
-				throw new TRPCError({
-					code: "FORBIDDEN",
-					message: "No active organization selected",
-				});
-			}
-
 			const updates: Partial<typeof chatSessions.$inferInsert> = {};
 			if (input.title !== undefined) {
 				updates.title = input.title;
@@ -104,7 +88,7 @@ export const chatRouter = {
 				.where(
 					and(
 						eq(chatSessions.id, input.sessionId),
-						eq(chatSessions.organizationId, organizationId),
+						eq(chatSessions.organizationId, MOCK_ORG_ID),
 						eq(chatSessions.createdBy, ctx.session.user.id),
 					),
 				)
@@ -116,21 +100,12 @@ export const chatRouter = {
 	deleteSession: protectedProcedure
 		.input(z.object({ sessionId: z.uuid() }))
 		.mutation(async ({ ctx, input }) => {
-			const organizationId = ctx.session.session.activeOrganizationId;
-
-			if (!organizationId) {
-				throw new TRPCError({
-					code: "FORBIDDEN",
-					message: "No active organization selected",
-				});
-			}
-
 			const [deleted] = await db
 				.delete(chatSessions)
 				.where(
 					and(
 						eq(chatSessions.id, input.sessionId),
-						eq(chatSessions.organizationId, organizationId),
+						eq(chatSessions.organizationId, MOCK_ORG_ID),
 						eq(chatSessions.createdBy, ctx.session.user.id),
 					),
 				)

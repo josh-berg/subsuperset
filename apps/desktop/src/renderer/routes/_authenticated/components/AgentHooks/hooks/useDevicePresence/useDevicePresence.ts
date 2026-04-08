@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react";
 import { apiTrpcClient } from "renderer/lib/api-trpc-client";
-import { authClient } from "renderer/lib/auth-client";
 import { electronTrpc } from "renderer/lib/electron-trpc";
 
 /**
@@ -8,15 +7,12 @@ import { electronTrpc } from "renderer/lib/electron-trpc";
  * No polling — just a single upsert into device_presence.
  */
 export function useDevicePresence() {
-	const { data: session } = authClient.useSession();
 	const { data: deviceInfo } = electronTrpc.auth.getDeviceInfo.useQuery();
-	const registeredScopeRef = useRef<string | null>(null);
+	const registeredRef = useRef(false);
 
 	useEffect(() => {
-		const orgId = session?.session?.activeOrganizationId;
-		if (!deviceInfo || !orgId) return;
-		if (registeredScopeRef.current === orgId) return;
-		registeredScopeRef.current = orgId;
+		if (!deviceInfo || registeredRef.current) return;
+		registeredRef.current = true;
 
 		apiTrpcClient.device.registerDevice
 			.mutate({
@@ -25,13 +21,9 @@ export function useDevicePresence() {
 				deviceType: "desktop",
 			})
 			.catch(() => {
-				// Registration can fail when offline — will retry on next app launch
-				registeredScopeRef.current = null;
+				registeredRef.current = false;
 			});
-	}, [deviceInfo, session?.session?.activeOrganizationId]);
+	}, [deviceInfo]);
 
-	return {
-		deviceInfo,
-		isActive: !!deviceInfo && !!session?.session?.activeOrganizationId,
-	};
+	return { deviceInfo, isActive: !!deviceInfo };
 }

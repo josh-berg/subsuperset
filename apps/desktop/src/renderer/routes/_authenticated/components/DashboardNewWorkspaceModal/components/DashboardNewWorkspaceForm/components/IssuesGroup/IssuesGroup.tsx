@@ -1,5 +1,4 @@
 import { Avatar } from "@superset/ui/atoms/Avatar";
-import { Button } from "@superset/ui/button";
 import { CommandEmpty, CommandGroup, CommandItem } from "@superset/ui/command";
 import { toast } from "@superset/ui/sonner";
 import { eq, isNull } from "@tanstack/db";
@@ -8,8 +7,6 @@ import { useNavigate } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { GoArrowUpRight } from "react-icons/go";
 import { HiOutlineUserCircle } from "react-icons/hi2";
-import { SiLinear } from "react-icons/si";
-import { GATED_FEATURES, usePaywall } from "renderer/components/Paywall";
 import { useDebouncedValue } from "renderer/hooks/useDebouncedValue";
 import { getSlugColumnWidth } from "renderer/lib/slug-width";
 import type { WorkspaceHostTarget } from "renderer/lib/v2-workspace-host";
@@ -32,25 +29,9 @@ interface IssuesGroupProps {
 export function IssuesGroup({ projectId, hostTarget }: IssuesGroupProps) {
 	const collections = useCollections();
 	const navigate = useNavigate();
-	const { gateFeature } = usePaywall();
 	const { createWorkspace } = useCreateDashboardWorkspace();
 	const { draft, closeAndResetDraft, runAsyncAction } =
 		useDashboardNewWorkspaceDraft();
-
-	const { data: integrations } = useLiveQuery(
-		(q) =>
-			q
-				.from({
-					integrationConnections: collections.integrationConnections,
-				})
-				.select(({ integrationConnections }) => ({
-					...integrationConnections,
-				})),
-		[collections],
-	);
-
-	const isLinearConnected =
-		integrations?.some((i) => i.provider === "linear") ?? false;
 
 	const { data } = useLiveQuery(
 		(q) =>
@@ -109,32 +90,6 @@ export function IssuesGroup({ projectId, hostTarget }: IssuesGroupProps) {
 		() => getSlugColumnWidth(visibleTasks.map((t) => t.slug)),
 		[visibleTasks],
 	);
-
-	if (!isLinearConnected) {
-		return (
-			<div className="flex flex-col items-center gap-3 py-8 px-4 text-center">
-				<SiLinear className="size-6 text-muted-foreground" />
-				<div className="space-y-1">
-					<p className="text-sm font-medium">Connect Linear</p>
-					<p className="text-xs text-muted-foreground">
-						Sync issues from Linear to create workspaces
-					</p>
-				</div>
-				<Button
-					size="sm"
-					variant="outline"
-					onClick={() => {
-						gateFeature(GATED_FEATURES.INTEGRATIONS, () => {
-							closeAndResetDraft();
-							navigate({ to: "/settings/integrations" });
-						});
-					}}
-				>
-					Connect
-				</Button>
-			</div>
-		);
-	}
 
 	return (
 		<CommandGroup>

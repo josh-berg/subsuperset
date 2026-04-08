@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { StartFreshSessionResult } from "renderer/components/Chat/ChatInterface/types";
 import { env } from "renderer/env.renderer";
 import { apiTrpcClient } from "renderer/lib/api-trpc-client";
-import { authClient, getAuthToken } from "renderer/lib/auth-client";
+import { getAuthToken } from "renderer/lib/auth-client";
 import {
 	isDesktopChatDevMode,
 	isDesktopChatSessionReady,
@@ -137,10 +137,7 @@ export function useChatPaneController({
 	const sessionId = pane?.chat?.sessionId ?? null;
 	const launchConfig = pane?.chat?.launchConfig ?? null;
 	const needsLegacySessionBootstrap = sessionId === null;
-	const { data: session } = authClient.useSession();
-	const organizationId = resolveDesktopChatOrganizationId(
-		session?.session?.activeOrganizationId,
-	);
+	const organizationId = resolveDesktopChatOrganizationId();
 	const collections = useCollections();
 	const legacySessionBootstrapRef = useRef(false);
 	const ensuredRef = useRef<string | null>(null);

@@ -1,11 +1,7 @@
-import { Spinner } from "@superset/ui/spinner";
-import { useLiveQuery } from "@tanstack/react-db";
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useCollections } from "renderer/routes/_authenticated/providers/CollectionsProvider";
 import { useTasksFilterStore } from "../../stores/tasks-filter-state";
 import { BoardContent } from "./components/BoardContent";
-import { LinearCTA } from "./components/LinearCTA";
 import { TableContent } from "./components/TableContent";
 import { type TabValue, TasksTopBar } from "./components/TasksTopBar";
 import type { TaskWithStatus } from "./hooks/useTasksData";
@@ -22,7 +18,6 @@ export function TasksView({
 	initialSearch,
 }: TasksViewProps) {
 	const navigate = useNavigate();
-	const collections = useCollections();
 	const currentTab: TabValue = initialTab ?? "all";
 	const [searchQuery, setSearchQuery] = useState(initialSearch ?? "");
 	const assigneeFilter = initialAssignee ?? null;
@@ -78,19 +73,6 @@ export function TasksView({
 		storeSetSearch(searchQuery);
 	}, [searchQuery, storeSetSearch]);
 
-	const { data: integrations, isLoading: isCheckingLinear } = useLiveQuery(
-		(q) =>
-			q
-				.from({ integrationConnections: collections.integrationConnections })
-				.select(({ integrationConnections }) => ({
-					...integrationConnections,
-				})),
-		[collections],
-	);
-
-	const isLinearConnected =
-		integrations?.some((i) => i.provider === "linear") ?? false;
-
 	const handleTabChange = (tab: TabValue) => {
 		const search: Record<string, string> = {};
 		if (tab !== "all") search.tab = tab;
@@ -134,32 +116,22 @@ export function TasksView({
 		});
 	};
 
-	const showLinearCTA = !isCheckingLinear && !isLinearConnected;
-
 	return (
 		<div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
-			{!showLinearCTA && (
-				<TasksTopBar
-					currentTab={currentTab}
-					onTabChange={handleTabChange}
-					searchQuery={searchQuery}
-					onSearchChange={handleSearchChange}
-					assigneeFilter={assigneeFilter}
-					onAssigneeFilterChange={handleAssigneeFilterChange}
-					selectedTasks={selectedTasks}
-					onClearSelection={handleClearSelection}
-					viewMode={viewMode}
-					onViewModeChange={setViewMode}
-				/>
-			)}
+			<TasksTopBar
+				currentTab={currentTab}
+				onTabChange={handleTabChange}
+				searchQuery={searchQuery}
+				onSearchChange={handleSearchChange}
+				assigneeFilter={assigneeFilter}
+				onAssigneeFilterChange={handleAssigneeFilterChange}
+				selectedTasks={selectedTasks}
+				onClearSelection={handleClearSelection}
+				viewMode={viewMode}
+				onViewModeChange={setViewMode}
+			/>
 
-			{isCheckingLinear ? (
-				<div className="flex-1 flex items-center justify-center">
-					<Spinner className="size-5" />
-				</div>
-			) : showLinearCTA ? (
-				<LinearCTA />
-			) : viewMode === "board" ? (
+			{viewMode === "board" ? (
 				<BoardContent
 					filterTab={currentTab}
 					searchQuery={searchQuery}

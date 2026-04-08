@@ -1,30 +1,14 @@
-import { TRPCError } from "@trpc/server";
-import type { TRPCContext } from "../../trpc";
-import { verifyOrgMembership } from "../integration/utils";
+const MOCK_ORG_ID = "mock-org-id";
 
-type Session = NonNullable<TRPCContext["session"]>;
-
-export function requireActiveOrgId(
-	session: Session,
-	message = "No active organization selected",
-) {
-	const organizationId = session.session.activeOrganizationId;
-
-	if (!organizationId) {
-		throw new TRPCError({
-			code: "FORBIDDEN",
-			message,
-		});
-	}
-
-	return organizationId;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function requireActiveOrgId(_session?: any, _message?: string): string {
+	return MOCK_ORG_ID;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function requireActiveOrgMembership(
-	session: Session,
-	message?: string,
-) {
-	const organizationId = requireActiveOrgId(session, message);
-	await verifyOrgMembership(session.user.id, organizationId);
-	return organizationId;
+	_session?: any,
+	_message?: string,
+): Promise<string> {
+	return MOCK_ORG_ID;
 }

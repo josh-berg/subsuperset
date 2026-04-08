@@ -1,4 +1,3 @@
-import { authClient } from "@superset/auth/client";
 import type { TaskPriority } from "@superset/db/enums";
 import { Button } from "@superset/ui/button";
 import {
@@ -42,7 +41,6 @@ export function CreateTaskDialog({
 	assigneeFilter,
 }: CreateTaskDialogProps) {
 	const collections = useCollections();
-	const { data: session } = authClient.useSession();
 	const navigate = useNavigate();
 	const modKey = PLATFORM === "mac" ? "⌘" : "Ctrl";
 	const titleInputRef = useRef<HTMLInputElement>(null);
@@ -68,23 +66,10 @@ export function CreateTaskDialog({
 				.select(({ users }) => ({ ...users })),
 		[collections],
 	);
-	const { data: organizationData } = useLiveQuery(
-		(q) =>
-			q
-				.from({ organizations: collections.organizations })
-				.select(({ organizations }) => ({ ...organizations })),
-		[collections],
-	);
 
 	const statuses = useMemo(() => statusData ?? [], [statusData]);
 	const users = useMemo(() => userData ?? [], [userData]);
-	const activeOrganizationId = session?.session?.activeOrganizationId ?? null;
-	const organizationLabel = useMemo(() => {
-		const organization = organizationData?.find(
-			(org) => org.id === activeOrganizationId,
-		);
-		return organization?.name ?? "Task";
-	}, [activeOrganizationId, organizationData]);
+	const organizationLabel = "Task";
 
 	const defaultStatusId = useMemo(() => {
 		const sortedStatuses = [...statuses].sort(compareStatusesForDropdown);
