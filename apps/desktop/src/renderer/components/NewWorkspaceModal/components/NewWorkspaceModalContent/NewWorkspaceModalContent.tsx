@@ -29,12 +29,14 @@ type ModalStep = "project" | "branch";
 interface NewWorkspaceModalContentProps {
 	isOpen: boolean;
 	preSelectedProjectId: string | null;
+	skipProjectStep: boolean;
 	onNewProject: () => void;
 }
 
 export function NewWorkspaceModalContent({
 	isOpen,
 	preSelectedProjectId,
+	skipProjectStep,
 	onNewProject,
 }: NewWorkspaceModalContentProps) {
 	const navigate = useNavigate();
@@ -48,8 +50,12 @@ export function NewWorkspaceModalContent({
 	const [step, setStep] = useState<ModalStep>("project");
 
 	useEffect(() => {
-		if (!isOpen) setStep("project");
-	}, [isOpen]);
+		if (!isOpen) {
+			setStep("project");
+		} else if (skipProjectStep && preSelectedProjectId) {
+			setStep("branch");
+		}
+	}, [isOpen, skipProjectStep, preSelectedProjectId]);
 
 	useEffect(() => {
 		if (!isOpen) return;

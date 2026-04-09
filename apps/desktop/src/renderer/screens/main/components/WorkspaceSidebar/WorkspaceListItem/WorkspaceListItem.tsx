@@ -251,7 +251,7 @@ export function WorkspaceListItem({
 			? { additions: pr.additions, deletions: pr.deletions }
 			: null);
 
-	const hasPrBadgeRow = !!pr;
+	const hasPrBadgeRow = !!pr || isBranchWorkspace;
 
 	if (isCollapsed) {
 		return (
@@ -431,6 +431,12 @@ export function WorkspaceListItem({
 								</div>
 							</div>
 						</div>
+
+						{isBranchWorkspace && (
+							<span className="text-[11px] text-muted-foreground truncate">
+								{branch}
+							</span>
+						)}
 
 						{pr && (
 							<div className="flex items-center gap-2 text-[11px] w-full">

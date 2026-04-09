@@ -16,6 +16,7 @@ import {
 	useCloseNewWorkspaceModal,
 	useNewWorkspaceModalOpen,
 	usePreSelectedProjectId,
+	useSkipProjectStep,
 } from "renderer/stores/new-workspace-modal";
 import { NewWorkspaceModalContent } from "./components/NewWorkspaceModalContent";
 import {
@@ -45,6 +46,7 @@ export function NewWorkspaceModal() {
 	const closeModal = useCloseNewWorkspaceModal();
 	const navigate = useNavigate();
 	const preSelectedProjectId = usePreSelectedProjectId();
+	const skipProjectStep = useSkipProjectStep();
 
 	// Prevents AgentSelect from flashing "No agent" while presets load after refresh.
 	electronTrpc.settings.getAgentPresets.useQuery();
@@ -71,6 +73,7 @@ export function NewWorkspaceModal() {
 						<NewWorkspaceModalContent
 							isOpen={isOpen}
 							preSelectedProjectId={preSelectedProjectId}
+							skipProjectStep={skipProjectStep}
 							onNewProject={handleNewProject}
 						/>
 					</DialogContent>
