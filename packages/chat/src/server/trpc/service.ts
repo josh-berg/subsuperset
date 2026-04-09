@@ -34,8 +34,6 @@ import {
 const ENABLE_MASTRA_MCP_SERVERS = false;
 
 function resolveOmModelFromAuth(): string | undefined {
-	if (process.env.GOOGLE_GENERATIVE_AI_API_KEY)
-		return "google/gemini-2.5-flash";
 	const authStorage = createAuthStorage();
 	authStorage.reload();
 	const anthropic = authStorage.get("anthropic");
@@ -44,13 +42,6 @@ function resolveOmModelFromAuth(): string | undefined {
 		(anthropic?.type === "api_key" && anthropic.key.trim())
 	) {
 		return "anthropic/claude-haiku-4-5";
-	}
-	const openai = authStorage.get("openai-codex");
-	if (
-		openai?.type === "oauth" ||
-		(openai?.type === "api_key" && openai.key.trim())
-	) {
-		return "openai/gpt-4.1-nano";
 	}
 	return undefined;
 }

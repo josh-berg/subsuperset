@@ -30,7 +30,6 @@ export const SETTING_ITEM_ID = {
 	TERMINAL_LINK_BEHAVIOR: "terminal-link-behavior",
 
 	MODELS_ANTHROPIC: "models-anthropic",
-	MODELS_OPENAI: "models-openai",
 
 	PROJECT_NAME: "project-name",
 	PROJECT_PATH: "project-path",
@@ -471,22 +470,6 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
 			"models",
 			"anthropic",
 			"claude",
-			"oauth",
-			"api key",
-			"auth",
-			"workspace naming",
-			"auto name",
-		],
-	},
-	{
-		id: SETTING_ITEM_ID.MODELS_OPENAI,
-		section: "models",
-		title: "OpenAI Model Auth",
-		description: "Connect OpenAI for supported model tasks",
-		keywords: [
-			"models",
-			"openai",
-			"gpt",
 			"oauth",
 			"api key",
 			"auth",
