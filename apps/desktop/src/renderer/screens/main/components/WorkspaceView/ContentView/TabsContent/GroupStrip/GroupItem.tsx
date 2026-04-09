@@ -8,6 +8,7 @@ import {
 } from "@superset/ui/context-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@superset/ui/tooltip";
 import { cn } from "@superset/ui/utils";
+import { GitCompare, SquareTerminal } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useDrag, useDrop } from "react-dnd";
 import { getEmptyImage } from "react-dnd-html5-backend";
@@ -15,6 +16,7 @@ import { HiMiniXMark } from "react-icons/hi2";
 import { LuEyeOff, LuPencil } from "react-icons/lu";
 import type { MosaicBranch } from "react-mosaic-component";
 import { MosaicDragType } from "react-mosaic-component";
+import claudeIcon from "renderer/assets/app-icons/preset-icons/claude.svg";
 import { StatusIndicator } from "renderer/screens/main/components/StatusIndicator";
 import { RenameInput } from "renderer/screens/main/components/WorkspaceSidebar/RenameInput";
 import { useDragPaneStore } from "renderer/stores/drag-pane-store";
@@ -66,6 +68,18 @@ export function GroupItem({
 	onReorder,
 }: GroupItemProps) {
 	const displayName = getTabDisplayName(tab);
+	const tabIcon = useTabsStore((s) => {
+		const tabPanes = Object.values(s.panes).filter((p) => p.tabId === tab.id);
+		const hasChat = tabPanes.some((p) => p.type === "chat");
+		if (hasChat) return "claude" as const;
+		const hasTerminal = tabPanes.some((p) => p.type === "terminal");
+		if (hasTerminal) return "terminal" as const;
+		const hasDiff = tabPanes.some(
+			(p) => p.type === "file-viewer" && p.fileViewer?.viewMode === "diff",
+		);
+		if (hasDiff) return "diff" as const;
+		return null;
+	});
 	const [isEditing, setIsEditing] = useState(false);
 	const [editValue, setEditValue] = useState("");
 	const activeTabId = useTabsStore((s) =>
@@ -244,6 +258,19 @@ export function GroupItem({
 								}}
 								className={tabStyles}
 							>
+								{tabIcon === "claude" && (
+									<img
+										src={claudeIcon}
+										alt="Claude"
+										className="size-3.5 shrink-0"
+									/>
+								)}
+								{tabIcon === "terminal" && (
+									<SquareTerminal className="size-3.5 shrink-0 text-current" />
+								)}
+								{tabIcon === "diff" && (
+									<GitCompare className="size-3.5 shrink-0 text-current" />
+								)}
 								<span className="text-sm truncate flex-1 text-left">
 									{displayName}
 								</span>
