@@ -12,7 +12,6 @@ import { navigateToWorkspace } from "renderer/routes/_authenticated/_dashboard/u
 import { usePresetHotkeys } from "renderer/routes/_authenticated/_dashboard/workspace/$workspaceId/hooks/usePresetHotkeys";
 import { useWorkspaceRunCommand } from "renderer/routes/_authenticated/_dashboard/workspace/$workspaceId/hooks/useWorkspaceRunCommand";
 import { NotFound } from "renderer/routes/not-found";
-import { CommandPalette } from "renderer/screens/main/components/CommandPalette";
 import { UnsavedChangesDialog } from "renderer/screens/main/components/WorkspaceView/ContentView/TabsContent/TabView/FileViewerPane/UnsavedChangesDialog";
 import { useWorkspaceFileEventBridge } from "renderer/screens/main/components/WorkspaceView/hooks/useWorkspaceFileEvents";
 import { useWorkspaceRenameReconciliation } from "renderer/screens/main/components/WorkspaceView/hooks/useWorkspaceRenameReconciliation";
@@ -338,10 +337,6 @@ function WorkspacePage() {
 		}
 	});
 
-	const [quickOpenOpen, setQuickOpenOpen] = useState(false);
-	const handleQuickOpen = useCallback(() => setQuickOpenOpen(true), []);
-	useHotkey("QUICK_OPEN", handleQuickOpen);
-
 	// Toggle changes sidebar (⌘L)
 	useHotkey("TOGGLE_SIDEBAR", () => toggleSidebar());
 
@@ -463,19 +458,10 @@ function WorkspacePage() {
 					<WorkspaceLayout
 						defaultExternalApp={resolvedDefaultApp}
 						onOpenInApp={handleOpenInApp}
-						onOpenQuickOpen={handleQuickOpen}
 					/>
 				)}
 			</div>
-			<CommandPalette
-				workspaceId={workspaceId}
-				open={quickOpenOpen}
-				onOpenChange={setQuickOpenOpen}
-				onSelectFile={(filePath) =>
-					useTabsStore.getState().addFileViewerPane(workspaceId, { filePath })
-				}
-			/>
-			<UnsavedChangesDialog
+<UnsavedChangesDialog
 				open={pendingTabClose !== null}
 				onOpenChange={(open) => {
 					if (!open) {

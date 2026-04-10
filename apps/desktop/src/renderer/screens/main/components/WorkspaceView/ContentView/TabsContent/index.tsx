@@ -9,13 +9,11 @@ import { TabView } from "./TabView";
 interface TabsContentProps {
 	defaultExternalApp?: ExternalApp | null;
 	onOpenInApp: () => void;
-	onOpenQuickOpen: () => void;
 }
 
 export function TabsContent({
 	defaultExternalApp,
 	onOpenInApp,
-	onOpenQuickOpen,
 }: TabsContentProps) {
 	const { workspaceId: activeWorkspaceId } = useParams({ strict: false });
 	const allTabs = useTabsStore((s) => s.tabs);
@@ -95,7 +93,6 @@ export function TabsContent({
 				<EmptyTabView
 					defaultExternalApp={defaultExternalApp}
 					onOpenInApp={onOpenInApp}
-					onOpenQuickOpen={onOpenQuickOpen}
 				/>
 			)}
 		</div>
