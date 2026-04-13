@@ -7,7 +7,6 @@ import {
 import { useEffect, useRef } from "react";
 import { DndProvider } from "react-dnd";
 import { NewWorkspaceModal } from "renderer/components/NewWorkspaceModal";
-import { useUpdateListener } from "renderer/components/UpdateToast";
 import { migrateHotkeyOverrides } from "renderer/hotkeys/migrate";
 import { dragDropManager } from "renderer/lib/dnd";
 import { electronTrpc } from "renderer/lib/electron-trpc";
@@ -37,7 +36,6 @@ function AppLayout() {
 	const shownWorkspaceInitWarningsRef = useRef(new Set<string>());
 
 	useAgentHookListener();
-	useUpdateListener();
 
 	// One-time migration from old hotkey storage to new localStorage-based store
 	useEffect(() => {

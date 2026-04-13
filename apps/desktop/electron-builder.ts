@@ -25,17 +25,6 @@ const config: Configuration = {
 	copyright: `Copyright © ${currentYear} — ${author}`,
 	electronVersion: pkg.devDependencies.electron.replace(/^\^/, ""),
 
-	// Generate update manifests for all channels (latest.yml, canary.yml, etc.)
-	// This enables proper channel-based auto-updates following electron-builder conventions
-	generateUpdatesFilesForAllChannels: true,
-
-	// Generate latest-mac.yml for auto-update (workflow handles actual upload)
-	publish: {
-		provider: "github",
-		owner: "superset-sh",
-		repo: "superset",
-	},
-
 	// Directories
 	directories: {
 		output: "release",

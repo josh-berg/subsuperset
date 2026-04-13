@@ -2,12 +2,6 @@ import { COMPANY } from "@superset/shared/constants";
 import { app, BrowserWindow, Menu, shell } from "electron";
 import { env } from "main/env.main";
 import { resetTerminalStateDev } from "main/lib/terminal/dev-reset";
-import {
-	checkForUpdatesInteractive,
-	simulateDownloading,
-	simulateError,
-	simulateUpdateReady,
-} from "./auto-updater";
 import { menuEmitter } from "./menu-events";
 
 export function createApplicationMenu() {
@@ -117,19 +111,6 @@ export function createApplicationMenu() {
 							});
 					},
 				},
-				{ type: "separator" },
-				{
-					label: "Simulate Update Downloading",
-					click: () => simulateDownloading(),
-				},
-				{
-					label: "Simulate Update Ready",
-					click: () => simulateUpdateReady(),
-				},
-				{
-					label: "Simulate Update Error",
-					click: () => simulateError(),
-				},
 			],
 		});
 	}
@@ -145,12 +126,6 @@ export function createApplicationMenu() {
 					accelerator: openSettingsAccelerator,
 					click: () => {
 						menuEmitter.emit("open-settings");
-					},
-				},
-				{
-					label: "Check for Updates...",
-					click: () => {
-						checkForUpdatesInteractive();
 					},
 				},
 				{ type: "separator" },

@@ -20,7 +20,6 @@ import {
 import { setupAgentHooks } from "./lib/agent-setup";
 import { initAppState } from "./lib/app-state";
 import { requestAppleEventsAccess } from "./lib/apple-events-permission";
-import { setupAutoUpdater } from "./lib/auto-updater";
 import { resolveDevWorkspaceName } from "./lib/dev-workspace-name";
 import { setWorkspaceDockIcon } from "./lib/dock-icon";
 import { loadWebviewBrowserExtension } from "./lib/extensions";
@@ -147,8 +146,7 @@ export function requestQuit(mode: QuitMode): void {
 	app.quit();
 }
 
-/** Set quit mode without triggering quit.
- *  Use when another API (e.g. autoUpdater.quitAndInstall) triggers quit internally. */
+/** Set quit mode without triggering quit. */
 export function prepareQuit(mode: QuitMode): void {
 	pendingQuitMode = mode;
 }
@@ -356,7 +354,6 @@ if (!gotTheLock) {
 		await getHostServiceManager().discoverAndAdoptAll();
 
 		await makeAppSetup(() => MainWindow());
-		setupAutoUpdater();
 		initTray();
 
 		const coldStartUrl = findDeepLinkInArgv(process.argv);
