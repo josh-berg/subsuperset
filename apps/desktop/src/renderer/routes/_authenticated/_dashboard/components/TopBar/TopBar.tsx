@@ -5,7 +5,6 @@ import { SidebarControl } from "renderer/screens/main/components/SidebarControl"
 import { NavigationControls } from "./components/NavigationControls";
 import { OpenInMenuButton } from "./components/OpenInMenuButton";
 import { ResourceConsumption } from "./components/ResourceConsumption";
-import { SearchBarTrigger } from "./components/SearchBarTrigger";
 import { SidebarToggle } from "./components/SidebarToggle";
 import { WindowControls } from "./components/WindowControls";
 
@@ -32,25 +31,7 @@ export function TopBar() {
 				<ResourceConsumption />
 			</div>
 
-			{workspaceId && (
-				<div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-					<div className="pointer-events-auto">
-						<SearchBarTrigger
-							workspaceName={
-								workspace
-									? getWorkspaceDisplayName(
-											workspace.name,
-											workspace.type,
-											workspace.project?.name,
-										)
-									: undefined
-							}
-						/>
-					</div>
-				</div>
-			)}
-
-			<div className="flex items-center gap-3 h-full pr-4 shrink-0">
+<div className="flex items-center gap-3 h-full pr-4 shrink-0">
 				{workspace?.worktreePath ? (
 					<OpenInMenuButton
 						worktreePath={workspace.worktreePath}

@@ -4,15 +4,8 @@ import { cn } from "@superset/ui/utils";
 import { useParams } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { electronTrpc } from "renderer/lib/electron-trpc";
-import {
-	getGitHubPRCommentsQueryPolicy,
-	getGitHubStatusQueryPolicy,
-} from "renderer/lib/githubQueryPolicy";
+import { getGitHubStatusQueryPolicy } from "renderer/lib/githubQueryPolicy";
 import { useWorkspaceFileEvents } from "renderer/screens/main/components/WorkspaceView/hooks/useWorkspaceFileEvents";
-import {
-	checkSummaryIconConfig,
-	countOpenPullRequestComments,
-} from "renderer/screens/main/components/WorkspaceView/RightSidebar/ChangesView/components/ReviewPanel/utils";
 import { useBranchSyncInvalidation } from "renderer/screens/main/hooks/useBranchSyncInvalidation";
 import { useGitChangesStatus } from "renderer/screens/main/hooks/useGitChangesStatus";
 import { useChangesStore } from "renderer/stores/changes";
@@ -24,12 +17,10 @@ import {
 import type { ChangeCategory, ChangedFile } from "shared/changes-types";
 import type { FileSystemChangeEvent } from "shared/file-tree-types";
 import { sidebarHeaderTabTriggerClassName } from "../headerTabStyles";
-import { CategorySection } from "./components/CategorySection";
 import { ChangesHeader } from "./components/ChangesHeader";
 import { CommitInput } from "./components/CommitInput";
-import { DiscardConfirmDialog } from "./components/DiscardConfirmDialog";
-import { ReviewPanel } from "./components/ReviewPanel";
-import { useOrderedSections } from "./hooks";
+import { CommitListVirtualized } from "./components/CommitListVirtualized";
+import { FileList } from "./components/FileList";
 import { getPRActionState, shouldAutoCreatePRAfterPublish } from "./utils";
 
 interface ChangesViewProps {
@@ -49,7 +40,7 @@ interface PendingChangesRefresh {
 	invalidateSelectedFile: boolean;
 }
 
-type ChangesSidebarTab = "diffs" | "review";
+type ChangesTab = "changes" | "commits";
 
 function eventTargetsSelectedFile(
 	event: FileSystemChangeEvent,
@@ -90,13 +81,12 @@ export function ChangesView({
 	);
 	const worktreePath = workspace?.worktreePath;
 	const projectId = workspace?.projectId;
-	const activeTab = useChangesStore((s) => s.activeTab);
+
+	const [tab, setTab] = useState<ChangesTab>("changes");
+
 	const githubStatusQueryPolicy = getGitHubStatusQueryPolicy(
 		"changes-sidebar",
-		{
-			hasWorkspaceId: !!workspaceId,
-			isActive,
-		},
+		{ hasWorkspaceId: !!workspaceId, isActive },
 	);
 
 	const { status, isLoading, effectiveBaseBranch, branchData, refetch } =
@@ -119,60 +109,6 @@ export function ChangesView({
 		githubStatusQueryPolicy,
 	);
 
-	const stageAllMutation = electronTrpc.changes.stageAll.useMutation({
-		onSuccess: () => refetch(),
-		onError: (error) => {
-			console.error("Failed to stage all files:", error);
-			toast.error(`Failed to stage all: ${error.message}`);
-		},
-	});
-
-	const unstageAllMutation = electronTrpc.changes.unstageAll.useMutation({
-		onSuccess: () => refetch(),
-		onError: (error) => {
-			console.error("Failed to unstage all files:", error);
-			toast.error(`Failed to unstage all: ${error.message}`);
-		},
-	});
-
-	const stageFileMutation = electronTrpc.changes.stageFile.useMutation({
-		onSuccess: () => refetch(),
-		onError: (error, variables) => {
-			console.error(`Failed to stage file ${variables.filePath}:`, error);
-			toast.error(`Failed to stage ${variables.filePath}: ${error.message}`);
-		},
-	});
-
-	const unstageFileMutation = electronTrpc.changes.unstageFile.useMutation({
-		onSuccess: () => refetch(),
-		onError: (error, variables) => {
-			console.error(`Failed to unstage file ${variables.filePath}:`, error);
-			toast.error(`Failed to unstage ${variables.filePath}: ${error.message}`);
-		},
-	});
-
-	const stageFilesMutation = electronTrpc.changes.stageFiles.useMutation({
-		onSuccess: () => refetch(),
-		onError: (error, variables) => {
-			console.error(
-				`Failed to stage files ${variables.filePaths.join(", ")}:`,
-				error,
-			);
-			toast.error(`Failed to stage files: ${error.message}`);
-		},
-	});
-
-	const unstageFilesMutation = electronTrpc.changes.unstageFiles.useMutation({
-		onSuccess: () => refetch(),
-		onError: (error, variables) => {
-			console.error(
-				`Failed to unstage files ${variables.filePaths.join(", ")}:`,
-				error,
-			);
-			toast.error(`Failed to unstage files: ${error.message}`);
-		},
-	});
-
 	const discardChangesMutation =
 		electronTrpc.changes.discardChanges.useMutation({
 			onSuccess: () => refetch(),
@@ -191,30 +127,6 @@ export function ChangesView({
 			onError: (error, variables) => {
 				console.error(`Failed to delete ${variables.filePath}:`, error);
 				toast.error(`Failed to delete file: ${error.message}`);
-			},
-		});
-
-	const discardAllUnstagedMutation =
-		electronTrpc.changes.discardAllUnstaged.useMutation({
-			onSuccess: () => {
-				toast.success("Discarded all unstaged changes");
-				refetch();
-			},
-			onError: (error) => {
-				console.error("Failed to discard all unstaged:", error);
-				toast.error(`Failed to discard: ${error.message}`);
-			},
-		});
-
-	const discardAllStagedMutation =
-		electronTrpc.changes.discardAllStaged.useMutation({
-			onSuccess: () => {
-				toast.success("Discarded all staged changes");
-				refetch();
-			},
-			onError: (error) => {
-				console.error("Failed to discard all staged:", error);
-				toast.error(`Failed to discard: ${error.message}`);
 			},
 		});
 
@@ -252,38 +164,12 @@ export function ChangesView({
 		},
 	});
 
-	const [showDiscardUnstagedDialog, setShowDiscardUnstagedDialog] =
-		useState(false);
-	const [showDiscardStagedDialog, setShowDiscardStagedDialog] = useState(false);
 	const activePullRequest = githubStatus?.pr ?? null;
-	const githubPRCommentsQueryPolicy = getGitHubPRCommentsQueryPolicy({
-		hasWorkspaceId: !!workspaceId,
-		hasActivePullRequest: !!activePullRequest,
-		isActive,
-	});
 	const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const pendingRefreshRef = useRef<PendingChangesRefresh>({
 		invalidateBranches: false,
 		invalidateSelectedFile: false,
 	});
-	const {
-		data: githubComments = [],
-		isLoading: isGitHubCommentsLoading,
-		refetch: refetchGitHubComments,
-	} = electronTrpc.workspaces.getGitHubPRComments.useQuery(
-		{
-			workspaceId: workspaceId ?? "",
-			...(activePullRequest
-				? {
-						prNumber: activePullRequest.number,
-						repoUrl: githubStatus?.repoUrl,
-						upstreamUrl: githubStatus?.upstreamUrl,
-						isFork: githubStatus?.isFork,
-					}
-				: {}),
-		},
-		githubPRCommentsQueryPolicy,
-	);
 
 	useBranchSyncInvalidation({
 		gitBranch: status?.branch ?? branchData?.currentBranch ?? undefined,
@@ -294,37 +180,19 @@ export function ChangesView({
 	const handleRefresh = () => {
 		refetch();
 		refetchGithubStatus();
-		if (activePullRequest) {
-			refetchGitHubComments();
-		}
 	};
 
 	const handleDiscard = (file: ChangedFile) => {
 		if (!worktreePath) return;
 		if (file.status === "untracked" || file.status === "added") {
-			deleteUntrackedMutation.mutate({
-				worktreePath,
-				filePath: file.path,
-			});
+			deleteUntrackedMutation.mutate({ worktreePath, filePath: file.path });
 		} else {
-			discardChangesMutation.mutate({
-				worktreePath,
-				filePath: file.path,
-			});
+			discardChangesMutation.mutate({ worktreePath, filePath: file.path });
 		}
 	};
 
-	const {
-		expandedSections,
-		fileListViewMode,
-		sectionOrder,
-		selectFile,
-		getSelectedFile,
-		setActiveTab,
-		toggleSection,
-		moveSection,
-		setFileListViewMode,
-	} = useChangesStore();
+	const { fileListViewMode, selectFile, getSelectedFile, setFileListViewMode } =
+		useChangesStore();
 
 	const selectedFileState = getSelectedFile(workspaceId || "");
 	const selectedFile = selectedFileState?.file ?? null;
@@ -351,13 +219,10 @@ export function ChangesView({
 	useWorkspaceFileEvents(
 		workspaceId ?? "",
 		(event) => {
-			if (!worktreePath) {
-				return;
-			}
+			if (!worktreePath) return;
 
 			const selectedAbsolutePath = selectedFileState?.absolutePath ?? null;
-			pendingRefreshRef.current.invalidateBranches ||=
-				event.type === "overflow";
+			pendingRefreshRef.current.invalidateBranches ||= event.type === "overflow";
 			pendingRefreshRef.current.invalidateSelectedFile ||=
 				eventTargetsSelectedFile(event, selectedAbsolutePath);
 
@@ -426,12 +291,13 @@ export function ChangesView({
 		Boolean(workspaceId && worktreePath),
 	);
 
+	// Only load commit files when the commits tab is active
 	const expandedCommitHashes = useMemo(
 		() =>
-			isActive && expandedSections.committed
+			isActive && tab === "commits"
 				? Array.from(expandedCommits)
 				: ([] as string[]),
-		[isActive, expandedSections.committed, expandedCommits],
+		[isActive, tab, expandedCommits],
 	);
 
 	const commitFilesQueries = electronTrpc.useQueries((t) =>
@@ -454,6 +320,7 @@ export function ChangesView({
 		return map;
 	}, [expandedCommitHashes, commitFilesQueries]);
 
+	const stagedFiles = status?.staged ?? [];
 	const combinedUnstaged = useMemo(
 		() =>
 			status?.unstaged && status?.untracked
@@ -461,6 +328,14 @@ export function ChangesView({
 				: [],
 		[status?.unstaged, status?.untracked],
 	);
+	const commits = status?.commits ?? [];
+
+	const hasChanges = stagedFiles.length > 0 || combinedUnstaged.length > 0;
+
+	const commitsWithFiles = commits.map((commit) => ({
+		...commit,
+		files: commitFilesMap.get(commit.hash) || commit.files,
+	}));
 
 	const handleFileSelect = (file: ChangedFile, category: ChangeCategory) => {
 		if (!workspaceId || !worktreePath) return;
@@ -498,58 +373,33 @@ export function ChangesView({
 		});
 	};
 
-	const againstBaseFiles = status?.againstBase ?? [];
-	const commits = status?.commits ?? [];
-	const stagedFiles = status?.staged ?? [];
-	const unstagedFiles = status?.unstaged ?? [];
-	const untrackedFiles = status?.untracked ?? [];
-
-	const hasChanges =
-		againstBaseFiles.length > 0 ||
-		commits.length > 0 ||
-		stagedFiles.length > 0 ||
-		unstagedFiles.length > 0 ||
-		untrackedFiles.length > 0;
-
-	const commitsWithFiles = commits.map((commit) => ({
-		...commit,
-		files: commitFilesMap.get(commit.hash) || commit.files,
-	}));
-
+	// Deselect file if it no longer exists in the current change sets
 	useEffect(() => {
 		if (!workspaceId || !worktreePath || !selectedFileState) {
 			return;
 		}
 
 		const existsInSelection =
-			selectedFileState.category === "against-base"
-				? againstBaseFiles.some((file) =>
+			selectedFileState.category === "staged"
+				? stagedFiles.some((file) =>
 						pathsMatch(
 							toAbsoluteWorkspacePath(worktreePath, file.path),
 							selectedFileState.absolutePath,
 						),
 					)
-				: selectedFileState.category === "staged"
-					? stagedFiles.some((file) =>
+				: selectedFileState.category === "unstaged"
+					? combinedUnstaged.some((file) =>
 							pathsMatch(
 								toAbsoluteWorkspacePath(worktreePath, file.path),
 								selectedFileState.absolutePath,
 							),
 						)
-					: selectedFileState.category === "unstaged"
-						? combinedUnstaged.some((file) =>
-								pathsMatch(
-									toAbsoluteWorkspacePath(worktreePath, file.path),
-									selectedFileState.absolutePath,
-								),
-							)
-						: selectedFileState.category === "committed";
+					: selectedFileState.category === "committed";
 
 		if (!existsInSelection) {
 			selectFile(workspaceId, null, null);
 		}
 	}, [
-		againstBaseFiles,
 		combinedUnstaged,
 		selectFile,
 		selectedFileState,
@@ -558,12 +408,11 @@ export function ChangesView({
 		worktreePath,
 	]);
 
-	const hasStagedChanges = stagedFiles.length > 0;
-	const hasExistingPR = !!activePullRequest;
-	const hasGitHubRepo = !!githubStatus?.repoUrl;
 	const defaultBranch =
 		branchData?.defaultBranch ?? status?.defaultBranch ?? "";
 	const isDefaultBranch = status?.branch === defaultBranch;
+	const hasGitHubRepo = !!githubStatus?.repoUrl;
+	const hasExistingPR = !!activePullRequest;
 	const prActionState = getPRActionState({
 		hasRepo: hasGitHubRepo,
 		hasExistingPR,
@@ -574,79 +423,7 @@ export function ChangesView({
 	});
 	const shouldAutoCreatePR =
 		hasGitHubRepo &&
-		shouldAutoCreatePRAfterPublish({
-			hasExistingPR,
-			isDefaultBranch,
-		});
-	const orderedSections = useOrderedSections({
-		sectionOrder,
-		effectiveBaseBranch: effectiveBaseBranch ?? "",
-		expandedSections,
-		toggleSection,
-		fileListViewMode,
-		selectedFile,
-		selectedCommitHash,
-		worktreePath: worktreePath ?? "",
-		projectId,
-		isExpandedView,
-		againstBaseFiles,
-		onAgainstBaseFileSelect: (file) => handleFileSelect(file, "against-base"),
-		commitsWithFiles,
-		expandedCommits,
-		onCommitToggle: handleCommitToggle,
-		onCommitFileSelect: handleCommitFileSelect,
-		stagedFiles,
-		onStagedFileSelect: (file) => handleFileSelect(file, "staged"),
-		onUnstageFile: (file) =>
-			unstageFileMutation.mutate({
-				worktreePath: worktreePath || "",
-				filePath: file.path,
-			}),
-		onUnstageFiles: (files) =>
-			unstageFilesMutation.mutate({
-				worktreePath: worktreePath || "",
-				filePaths: files.map((f) => f.path),
-			}),
-		onShowDiscardStagedDialog: () => setShowDiscardStagedDialog(true),
-		onUnstageAll: () =>
-			unstageAllMutation.mutate({
-				worktreePath: worktreePath || "",
-			}),
-		isDiscardAllStagedPending: discardAllStagedMutation.isPending,
-		isUnstageAllPending: unstageAllMutation.isPending,
-		isStagedActioning:
-			unstageFileMutation.isPending ||
-			unstageFilesMutation.isPending ||
-			unstageAllMutation.isPending ||
-			discardAllStagedMutation.isPending,
-		unstagedFiles: combinedUnstaged,
-		onUnstagedFileSelect: (file) => handleFileSelect(file, "unstaged"),
-		onStageFile: (file) =>
-			stageFileMutation.mutate({
-				worktreePath: worktreePath || "",
-				filePath: file.path,
-			}),
-		onStageFiles: (files) =>
-			stageFilesMutation.mutate({
-				worktreePath: worktreePath || "",
-				filePaths: files.map((f) => f.path),
-			}),
-		onDiscardFile: handleDiscard,
-		onShowDiscardUnstagedDialog: () => setShowDiscardUnstagedDialog(true),
-		onStageAll: () =>
-			stageAllMutation.mutate({
-				worktreePath: worktreePath || "",
-			}),
-		isDiscardAllUnstagedPending: discardAllUnstagedMutation.isPending,
-		isStageAllPending: stageAllMutation.isPending,
-		isUnstagedActioning:
-			stageFileMutation.isPending ||
-			stageFilesMutation.isPending ||
-			stageAllMutation.isPending ||
-			discardChangesMutation.isPending ||
-			deleteUntrackedMutation.isPending ||
-			discardAllUnstagedMutation.isPending,
-	});
+		shouldAutoCreatePRAfterPublish({ hasExistingPR, isDefaultBranch });
 
 	if (!worktreePath) {
 		return (
@@ -664,14 +441,7 @@ export function ChangesView({
 		);
 	}
 
-	if (
-		!status ||
-		!status.againstBase ||
-		!status.commits ||
-		!status.staged ||
-		!status.unstaged ||
-		!status.untracked
-	) {
+	if (!status) {
 		return (
 			<div className="flex-1 flex items-center justify-center text-muted-foreground text-sm p-4">
 				Unable to load changes
@@ -679,108 +449,66 @@ export function ChangesView({
 		);
 	}
 
-	const againstMainCount = status.againstBase.length;
-	const reviewCommentCount = activePullRequest
-		? countOpenPullRequestComments(githubComments)
-		: 0;
-	const relevantReviewTabChecks =
-		activePullRequest?.checks.filter(
-			(check) => check.status !== "skipped" && check.status !== "cancelled",
-		) ?? [];
-	const reviewTabChecksStatus =
-		relevantReviewTabChecks.length > 0
-			? (activePullRequest?.checksStatus ?? "none")
-			: "none";
-	const reviewTabChecksStatusConfig =
-		checkSummaryIconConfig[reviewTabChecksStatus];
-	const ReviewTabChecksIcon = reviewTabChecksStatusConfig.icon;
-
 	return (
 		<div className="flex flex-col flex-1 min-h-0">
 			<Tabs
-				value={activeTab}
-				onValueChange={(value) => setActiveTab(value as ChangesSidebarTab)}
+				value={tab}
+				onValueChange={(v) => setTab(v as ChangesTab)}
 				className="flex flex-1 min-h-0 flex-col gap-0"
 			>
 				<div className="h-8 shrink-0 border-b bg-background">
 					<TabsList className="grid h-full w-full grid-cols-2 items-stretch gap-0 rounded-none bg-transparent p-0">
 						<TabsTrigger
-							value="diffs"
+							value="changes"
 							className={cn(
 								sidebarHeaderTabTriggerClassName,
 								"min-w-0 w-full justify-center",
 							)}
 						>
-							<span>Diffs</span>
-							<span className="text-[11px] text-muted-foreground/60 tabular-nums">
-								{againstMainCount}
-							</span>
+							<span>Changes</span>
 						</TabsTrigger>
 						<TabsTrigger
-							value="review"
+							value="commits"
 							className={cn(
 								sidebarHeaderTabTriggerClassName,
 								"min-w-0 w-full justify-center",
 							)}
 						>
-							<span>Review</span>
-							<span className="text-[11px] text-muted-foreground/60 tabular-nums">
-								{reviewCommentCount}
-							</span>
-							{activePullRequest ? (
-								<ReviewTabChecksIcon
-									className={cn(
-										"size-3 shrink-0",
-										reviewTabChecksStatusConfig.className,
-										reviewTabChecksStatus === "pending" && "animate-spin",
-									)}
-								/>
-							) : null}
+							<span>Commits</span>
+							{commits.length > 0 && (
+								<span className="text-[11px] text-muted-foreground/60 tabular-nums">
+									{commits.length}
+								</span>
+							)}
 						</TabsTrigger>
 					</TabsList>
 				</div>
 
 				<TabsContent
-					value="diffs"
+					value="changes"
 					className="mt-0 flex min-h-0 flex-1 flex-col outline-none"
 				>
-					<div>
-						<ChangesHeader
-							onRefresh={handleRefresh}
-							viewMode={fileListViewMode}
-							onViewModeChange={setFileListViewMode}
-							showViewModeToggle
-							worktreePath={worktreePath}
-							pr={githubStatus?.pr ?? null}
-							isPRStatusLoading={isGitHubStatusLoading}
-							canCreatePR={prActionState.canCreatePR}
-							createPRBlockedReason={prActionState.createPRBlockedReason}
-							onStash={() => stashMutation.mutate({ worktreePath })}
-							onStashIncludeUntracked={() =>
-								stashIncludeUntrackedMutation.mutate({ worktreePath })
-							}
-							onStashPop={() => stashPopMutation.mutate({ worktreePath })}
-							isStashPending={
-								stashMutation.isPending ||
-								stashIncludeUntrackedMutation.isPending ||
-								stashPopMutation.isPending
-							}
-						/>
-					</div>
-					<div className="border-b border-border">
-						<CommitInput
-							worktreePath={worktreePath}
-							hasStagedChanges={hasStagedChanges}
-							pushCount={status.pushCount}
-							pullCount={status.pullCount}
-							hasUpstream={status.hasUpstream}
-							pullRequest={activePullRequest ?? null}
-							canCreatePR={prActionState.canCreatePR}
-							shouldAutoCreatePRAfterPublish={shouldAutoCreatePR}
-							onRefresh={handleRefresh}
-						/>
-					</div>
-
+					<ChangesHeader
+						onRefresh={handleRefresh}
+						viewMode={fileListViewMode}
+						onViewModeChange={setFileListViewMode}
+						showViewModeToggle
+						worktreePath={worktreePath}
+						pr={githubStatus?.pr ?? null}
+						isPRStatusLoading={isGitHubStatusLoading}
+						canCreatePR={prActionState.canCreatePR}
+						createPRBlockedReason={prActionState.createPRBlockedReason}
+						onStash={() => stashMutation.mutate({ worktreePath })}
+						onStashIncludeUntracked={() =>
+							stashIncludeUntrackedMutation.mutate({ worktreePath })
+						}
+						onStashPop={() => stashPopMutation.mutate({ worktreePath })}
+						isStashPending={
+							stashMutation.isPending ||
+							stashIncludeUntrackedMutation.isPending ||
+							stashPopMutation.isPending
+						}
+					/>
 					{!hasChanges ? (
 						<div className="flex flex-1 items-center justify-center px-4 text-center text-sm text-muted-foreground">
 							No changes detected
@@ -790,66 +518,76 @@ export function ChangesView({
 							className="flex-1 overflow-y-auto"
 							data-changes-scroll-container
 						>
-							{orderedSections
-								.filter((section) => section.count > 0)
-								.map((section) => (
-									<CategorySection
-										key={section.id}
-										id={section.id}
-										title={section.title}
-										count={section.count}
-										isExpanded={section.isExpanded}
-										onToggle={section.onToggle}
-										actions={section.actions}
-										onMove={moveSection}
-									>
-										{section.content}
-									</CategorySection>
-								))}
+							<FileList
+								files={stagedFiles}
+								category="staged"
+								viewMode={fileListViewMode}
+								selectedFile={selectedFile}
+								selectedCommitHash={selectedCommitHash}
+								onFileSelect={(file) => handleFileSelect(file, "staged")}
+								worktreePath={worktreePath}
+								projectId={projectId}
+								isExpandedView={isExpandedView}
+								onDiscard={handleDiscard}
+							/>
+							<FileList
+								files={combinedUnstaged}
+								category="unstaged"
+								viewMode={fileListViewMode}
+								selectedFile={selectedFile}
+								selectedCommitHash={selectedCommitHash}
+								onFileSelect={(file) => handleFileSelect(file, "unstaged")}
+								worktreePath={worktreePath}
+								projectId={projectId}
+								isExpandedView={isExpandedView}
+								onDiscard={handleDiscard}
+							/>
 						</div>
 					)}
+					<div className="shrink-0 border-t border-border">
+						<CommitInput
+							worktreePath={worktreePath}
+							hasStagedChanges={stagedFiles.length > 0}
+							pushCount={status.pushCount}
+							pullCount={status.pullCount}
+							hasUpstream={status.hasUpstream}
+							pullRequest={activePullRequest ?? null}
+							canCreatePR={prActionState.canCreatePR}
+							shouldAutoCreatePRAfterPublish={shouldAutoCreatePR}
+							onRefresh={handleRefresh}
+						/>
+					</div>
 				</TabsContent>
 
 				<TabsContent
-					value="review"
+					value="commits"
 					className="mt-0 flex min-h-0 flex-1 flex-col outline-none"
 				>
-					<ReviewPanel
-						pr={isGitHubStatusLoading ? null : activePullRequest}
-						comments={githubComments}
-						isLoading={isGitHubStatusLoading}
-						isCommentsLoading={isGitHubCommentsLoading}
-						workspaceId={workspaceId}
-						onCommentsChange={refetchGitHubComments}
-					/>
+					{commits.length === 0 ? (
+						<div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+							No commits on this branch
+						</div>
+					) : (
+						<div
+							className="flex-1 overflow-y-auto"
+							data-changes-scroll-container
+						>
+							<CommitListVirtualized
+								commits={commitsWithFiles}
+								expandedCommits={expandedCommits}
+								onCommitToggle={handleCommitToggle}
+								selectedFile={selectedFile}
+								selectedCommitHash={selectedCommitHash}
+								onFileSelect={handleCommitFileSelect}
+								viewMode={fileListViewMode}
+								worktreePath={worktreePath}
+								projectId={projectId}
+								isExpandedView={isExpandedView}
+							/>
+						</div>
+					)}
 				</TabsContent>
 			</Tabs>
-
-			<DiscardConfirmDialog
-				open={showDiscardUnstagedDialog}
-				onOpenChange={setShowDiscardUnstagedDialog}
-				title="Discard all unstaged changes?"
-				description="This will revert all unstaged modifications and delete untracked files. This action cannot be undone."
-				onConfirm={() =>
-					discardAllUnstagedMutation.mutate({
-						worktreePath: worktreePath || "",
-					})
-				}
-				confirmLabel="Discard All"
-			/>
-
-			<DiscardConfirmDialog
-				open={showDiscardStagedDialog}
-				onOpenChange={setShowDiscardStagedDialog}
-				title="Discard all staged changes?"
-				description="This will unstage and revert all staged changes. Staged new files will be deleted. This action cannot be undone."
-				onConfirm={() =>
-					discardAllStagedMutation.mutate({
-						worktreePath: worktreePath || "",
-					})
-				}
-				confirmLabel="Discard All"
-			/>
 		</div>
 	);
 }

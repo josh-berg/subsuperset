@@ -5,13 +5,11 @@ import { GroupStrip } from "./TabsContent/GroupStrip";
 interface ContentViewProps {
 	defaultExternalApp?: ExternalApp | null;
 	onOpenInApp: () => void;
-	onOpenQuickOpen: () => void;
 }
 
 export function ContentView({
 	defaultExternalApp,
 	onOpenInApp,
-	onOpenQuickOpen,
 }: ContentViewProps) {
 	return (
 		<div className="h-full flex flex-col overflow-hidden">
@@ -19,7 +17,6 @@ export function ContentView({
 			<TabsContent
 				defaultExternalApp={defaultExternalApp}
 				onOpenInApp={onOpenInApp}
-				onOpenQuickOpen={onOpenQuickOpen}
 			/>
 		</div>
 	);

@@ -15,13 +15,11 @@ import { RightSidebar } from "../RightSidebar";
 interface WorkspaceLayoutProps {
 	defaultExternalApp?: ExternalApp | null;
 	onOpenInApp: () => void;
-	onOpenQuickOpen: () => void;
 }
 
 export function WorkspaceLayout({
 	defaultExternalApp,
 	onOpenInApp,
-	onOpenQuickOpen,
 }: WorkspaceLayoutProps) {
 	useBrowserLifecycle();
 	const isSidebarOpen = useSidebarStore((s) => s.isSidebarOpen);
@@ -42,7 +40,6 @@ export function WorkspaceLayout({
 					<ContentView
 						defaultExternalApp={defaultExternalApp}
 						onOpenInApp={onOpenInApp}
-						onOpenQuickOpen={onOpenQuickOpen}
 					/>
 				)}
 			</div>

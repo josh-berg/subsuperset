@@ -3,7 +3,7 @@ import { useParams } from "@tanstack/react-router";
 import { useCallback, useMemo } from "react";
 import type { IconType } from "react-icons";
 import { BsTerminalPlus } from "react-icons/bs";
-import { LuExternalLink, LuSearch, LuTrash2 } from "react-icons/lu";
+import { LuExternalLink, LuTrash2 } from "react-icons/lu";
 import { TbMessageCirclePlus } from "react-icons/tb";
 import { getAppOption } from "renderer/components/OpenInExternalDropdown";
 import { useHotkeyDisplay } from "renderer/hotkeys";
@@ -19,7 +19,6 @@ import { EmptyTabActionButton } from "./components/EmptyTabActionButton";
 interface EmptyTabViewProps {
 	defaultExternalApp?: ExternalApp | null;
 	onOpenInApp: () => void;
-	onOpenQuickOpen: () => void;
 }
 
 interface EmptyTabAction {
@@ -33,7 +32,6 @@ interface EmptyTabAction {
 export function EmptyTabView({
 	defaultExternalApp,
 	onOpenInApp,
-	onOpenQuickOpen,
 }: EmptyTabViewProps) {
 	const { workspaceId } = useParams({
 		from: "/_authenticated/_dashboard/workspace/$workspaceId/",
@@ -50,7 +48,6 @@ export function EmptyTabView({
 
 	const { keys: newGroupDisplay } = useHotkeyDisplay("NEW_GROUP");
 	const { keys: newChatDisplay } = useHotkeyDisplay("NEW_CHAT");
-	const { keys: quickOpenDisplay } = useHotkeyDisplay("QUICK_OPEN");
 	const { keys: openInAppDisplay } = useHotkeyDisplay("OPEN_IN_APP");
 	const resolvedExternalApp: ExternalApp = defaultExternalApp ?? "cursor";
 
@@ -96,14 +93,6 @@ export function EmptyTabView({
 			});
 		}
 
-		baseActions.push({
-			id: "search-files",
-			label: "Search Files",
-			display: quickOpenDisplay,
-			icon: LuSearch,
-			onClick: onOpenQuickOpen,
-		});
-
 		return baseActions;
 	}, [
 		handleNewAgent,
@@ -112,9 +101,7 @@ export function EmptyTabView({
 		newGroupDisplay,
 		openInActionLabel,
 		onOpenInApp,
-		onOpenQuickOpen,
 		openInAppDisplay,
-		quickOpenDisplay,
 	]);
 
 	return (
