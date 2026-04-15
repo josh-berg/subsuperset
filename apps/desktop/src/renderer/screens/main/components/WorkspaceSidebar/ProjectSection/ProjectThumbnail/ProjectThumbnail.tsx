@@ -10,6 +10,7 @@ interface ProjectThumbnailProps {
 	githubOwner: string | null;
 	hideImage?: boolean;
 	iconUrl?: string | null;
+	iconLetter?: string | null;
 	className?: string;
 }
 
@@ -57,6 +58,7 @@ export function ProjectThumbnail({
 	githubOwner,
 	hideImage,
 	iconUrl,
+	iconLetter,
 	className,
 }: ProjectThumbnailProps) {
 	const [imageError, setImageError] = useState(false);
@@ -71,7 +73,9 @@ export function ProjectThumbnail({
 	);
 
 	const owner = avatarData?.owner ?? githubOwner;
-	const firstLetter = projectName.charAt(0).toUpperCase();
+	const displayLetter = iconLetter?.trim()
+		? iconLetter.trim().toUpperCase().slice(0, 2)
+		: projectName.charAt(0).toUpperCase();
 	const hasCustomColor = isCustomColor(projectColor);
 	const shouldUseTransparentIconFrame = projectColor === PROJECT_COLOR_DEFAULT;
 
@@ -148,7 +152,7 @@ export function ProjectThumbnail({
 			)}
 			style={fallbackStyle}
 		>
-			{firstLetter}
-		</div>
+			{displayLetter}
+</div>
 	);
 }

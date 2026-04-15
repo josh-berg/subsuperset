@@ -301,6 +301,7 @@ export function NewWorkspaceModalContent({
 											projectColor={project.color}
 											githubOwner={project.githubOwner}
 											iconUrl={project.iconUrl}
+											iconLetter={project.iconLetter}
 											hideImage={project.hideImage ?? false}
 										/>
 										{project.name}
@@ -457,6 +458,7 @@ export function NewWorkspaceModalContent({
 						projectColor={selectedProject.color}
 						githubOwner={selectedProject.githubOwner}
 						iconUrl={selectedProject.iconUrl}
+						iconLetter={selectedProject.iconLetter}
 						hideImage={selectedProject.hideImage ?? false}
 						className="!size-4"
 					/>

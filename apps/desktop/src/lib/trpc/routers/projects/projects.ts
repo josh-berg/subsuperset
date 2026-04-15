@@ -1447,6 +1447,7 @@ export const createProjectsRouter = (getWindow: () => BrowserWindow | null) => {
 						workspaceBaseBranch: z.string().nullable().optional(),
 						worktreeBaseDir: z.string().nullable().optional(),
 						hideImage: z.boolean().optional(),
+						iconLetter: z.string().max(2).nullable().optional(),
 						defaultApp: z.enum(EXTERNAL_APPS).nullable().optional(),
 					}),
 				}),
@@ -1482,6 +1483,9 @@ export const createProjectsRouter = (getWindow: () => BrowserWindow | null) => {
 						}),
 						...(input.patch.hideImage !== undefined && {
 							hideImage: input.patch.hideImage,
+						}),
+						...(input.patch.iconLetter !== undefined && {
+							iconLetter: input.patch.iconLetter,
 						}),
 						...(input.patch.defaultApp !== undefined && {
 							defaultApp: input.patch.defaultApp,

@@ -37,6 +37,7 @@ interface ProjectSectionProps {
 	mainRepoPath: string;
 	hideImage: boolean;
 	iconUrl: string | null;
+	iconLetter: string | null;
 	workspaces: SidebarWorkspace[];
 	sections: SidebarSection[];
 	topLevelItems: {
@@ -60,6 +61,7 @@ export function ProjectSection({
 	mainRepoPath,
 	hideImage,
 	iconUrl,
+	iconLetter,
 	workspaces,
 	sections,
 	topLevelItems,
@@ -242,6 +244,7 @@ export function ProjectSection({
 						mainRepoPath={mainRepoPath}
 						hideImage={hideImage}
 						iconUrl={iconUrl}
+						iconLetter={iconLetter}
 						isCollapsed={isCollapsed}
 						isSidebarCollapsed={isSidebarCollapsed}
 						onToggleCollapse={() => toggleProjectCollapsed(projectId)}
@@ -344,6 +347,7 @@ export function ProjectSection({
 					mainRepoPath={mainRepoPath}
 					hideImage={hideImage}
 					iconUrl={iconUrl}
+					iconLetter={iconLetter}
 					isCollapsed={isCollapsed}
 					isSidebarCollapsed={isSidebarCollapsed}
 					onToggleCollapse={() => toggleProjectCollapsed(projectId)}

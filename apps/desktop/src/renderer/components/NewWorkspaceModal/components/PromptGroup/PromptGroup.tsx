@@ -188,6 +188,7 @@ function ProjectPickerPill({
 							projectColor={selectedProject.color}
 							githubOwner={selectedProject.githubOwner}
 							iconUrl={selectedProject.iconUrl}
+							iconLetter={selectedProject.iconLetter}
 							hideImage={selectedProject.hideImage ?? false}
 							className="!size-3"
 						/>
@@ -219,6 +220,7 @@ function ProjectPickerPill({
 										projectColor={project.color}
 										githubOwner={project.githubOwner}
 										iconUrl={project.iconUrl}
+										iconLetter={project.iconLetter}
 										hideImage={project.hideImage ?? false}
 									/>
 									{project.name}

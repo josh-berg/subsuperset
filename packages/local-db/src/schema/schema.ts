@@ -44,6 +44,7 @@ export const projects = sqliteTable(
 		worktreeBaseDir: text("worktree_base_dir"),
 		hideImage: integer("hide_image", { mode: "boolean" }),
 		iconUrl: text("icon_url"),
+		iconLetter: text("icon_letter"),
 		defaultApp: text("default_app").$type<ExternalApp>(),
 	},
 	(table) => [

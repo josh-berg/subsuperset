@@ -115,10 +115,17 @@ export function ProjectSettings({
 	const [selectedWorktreePath, setSelectedWorktreePath] = useState<
 		string | null
 	>(null);
+	const [iconLetterInput, setIconLetterInput] = useState(
+		project?.iconLetter ?? "",
+	);
 
 	useEffect(() => {
 		setCustomPrefixInput(project?.branchPrefixCustom ?? "");
 	}, [project?.branchPrefixCustom]);
+
+	useEffect(() => {
+		setIconLetterInput(project?.iconLetter ?? "");
+	}, [project?.iconLetter]);
 
 	const updateProject = electronTrpc.projects.update.useMutation({
 		onError: (err) => {
@@ -601,6 +608,33 @@ export function ProjectSettings({
 								}
 							/>
 						</div>
+					</div>
+
+					{/* Icon Letter */}
+					<div className="flex items-center justify-between">
+						<div className="space-y-0.5">
+							<Label className="text-sm font-medium">Icon Letter</Label>
+							<p className="text-xs text-muted-foreground">
+								Override the letter shown in the sidebar icon (max 2 characters).
+							</p>
+						</div>
+						<Input
+							value={iconLetterInput}
+							onChange={(e) => {
+								const val = e.target.value.slice(0, 2);
+								setIconLetterInput(val);
+							}}
+							onBlur={() => {
+								const trimmed = iconLetterInput.trim() || null;
+								updateProject.mutate({
+									id: projectId,
+									patch: { iconLetter: trimmed },
+								});
+							}}
+							placeholder={project.name.charAt(0).toUpperCase()}
+							className="w-16 text-center uppercase"
+							maxLength={2}
+						/>
 					</div>
 
 					{/* Project Icon */}

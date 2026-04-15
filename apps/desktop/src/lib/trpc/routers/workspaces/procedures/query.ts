@@ -158,6 +158,7 @@ export const createQueryProcedures = () => {
 						mainRepoPath: string;
 						hideImage: boolean;
 						iconUrl: string | null;
+						iconLetter: string | null;
 					};
 					workspaces: WorkspaceItem[];
 					sections: SectionItem[];
@@ -190,6 +191,7 @@ export const createQueryProcedures = () => {
 						mainRepoPath: project.mainRepoPath,
 						hideImage: project.hideImage ?? false,
 						iconUrl: project.iconUrl ?? null,
+						iconLetter: project.iconLetter ?? null,
 					},
 					workspaces: [],
 					sections: projectSections,
