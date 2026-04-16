@@ -43,7 +43,6 @@ import {
 } from "react-icons/go";
 import { HiCheck, HiChevronUpDown } from "react-icons/hi2";
 import { LuFolderGit, LuFolderOpen, LuGitPullRequest } from "react-icons/lu";
-import { SiLinear } from "react-icons/si";
 import { AgentSelect } from "renderer/components/AgentSelect";
 import { LinkedIssuePill } from "renderer/components/Chat/ChatInterface/components/ChatInputFooter/components/LinkedIssuePill";
 import { useAgentLaunchPreferences } from "renderer/hooks/useAgentLaunchPreferences";
@@ -94,6 +93,7 @@ interface ProjectOption {
 	color: string;
 	githubOwner: string | null;
 	iconUrl: string | null;
+	iconLetter: string | null;
 	hideImage: boolean | null;
 }
 
@@ -1103,7 +1103,7 @@ ${sanitizeText(truncatedBody)}`;
 		[closeModal, navigate],
 	);
 
-	const addLinkedIssue = (
+	const _addLinkedIssue = (
 		slug: string,
 		title: string,
 		taskId: string | undefined,

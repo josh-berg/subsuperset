@@ -142,6 +142,7 @@
 		"better-sqlite3": "12.6.2",
 		"bindings": "^1.5.0",
 		"bufferutil": "^4.1.0",
+		"ccusage": "18.0.10",
 		"clsx": "^2.1.1",
 		"culori": "^4.0.2",
 		"date-fns": "^4.1.0",
