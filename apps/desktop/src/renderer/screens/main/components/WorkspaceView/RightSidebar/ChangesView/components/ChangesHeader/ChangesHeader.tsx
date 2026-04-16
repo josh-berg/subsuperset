@@ -15,10 +15,13 @@ import {
 	DropdownMenuTrigger,
 } from "@superset/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@superset/ui/popover";
+import { toast } from "@superset/ui/sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@superset/ui/tooltip";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+	VscArrowDown,
 	VscCheck,
+	VscCloudDownload,
 	VscGitStash,
 	VscGitStashApply,
 	VscRefresh,
@@ -37,6 +40,7 @@ interface ChangesHeaderProps {
 	onViewModeChange: (mode: ChangesViewMode) => void;
 	showViewModeToggle?: boolean;
 	worktreePath: string;
+	pullCount: number;
 	pr: GitHubStatus["pr"] | null;
 	isPRStatusLoading: boolean;
 	canCreatePR: boolean;
@@ -200,6 +204,78 @@ function StashDropdown({
 	);
 }
 
+function FetchPullGroup({
+	worktreePath,
+	pullCount,
+	onRefresh,
+}: {
+	worktreePath: string;
+	pullCount: number;
+	onRefresh: () => void;
+}) {
+	const fetchMutation = electronTrpc.changes.fetch.useMutation({
+		onSuccess: () => {
+			toast.success("Fetched");
+			onRefresh();
+		},
+		onError: (error) => toast.error(`Fetch failed: ${error.message}`),
+	});
+
+	const pullMutation = electronTrpc.changes.pull.useMutation({
+		onSuccess: () => {
+			toast.success("Pulled");
+			onRefresh();
+		},
+		onError: (error) => toast.error(`Pull failed: ${error.message}`),
+	});
+
+	const isPending = fetchMutation.isPending || pullMutation.isPending;
+
+	return (
+		<div className="flex items-center gap-0">
+			<Tooltip>
+				<TooltipTrigger asChild>
+					<Button
+						variant="ghost"
+						size="icon"
+						className="size-6 p-0"
+						onClick={() => fetchMutation.mutate({ worktreePath })}
+						disabled={isPending}
+					>
+						<VscCloudDownload className="size-3.5" />
+					</Button>
+				</TooltipTrigger>
+				<TooltipContent side="top" showArrow={false}>
+					Fetch
+				</TooltipContent>
+			</Tooltip>
+			<Tooltip>
+				<TooltipTrigger asChild>
+					<Button
+						variant="ghost"
+						size="icon"
+						className="size-6 p-0 relative"
+						onClick={() => pullMutation.mutate({ worktreePath })}
+						disabled={isPending || pullCount === 0}
+					>
+						<VscArrowDown className="size-3.5" />
+						{pullCount > 0 && (
+							<span className="absolute -bottom-0.5 -right-0.5 text-[8px] leading-none font-medium tabular-nums text-primary">
+								{pullCount}
+							</span>
+						)}
+					</Button>
+				</TooltipTrigger>
+				<TooltipContent side="top" showArrow={false}>
+					{pullCount > 0
+						? `Pull (${pullCount} commit${pullCount === 1 ? "" : "s"})`
+						: "Pull"}
+				</TooltipContent>
+			</Tooltip>
+		</div>
+	);
+}
+
 function RefreshButton({ onRefresh }: { onRefresh: () => void }) {
 	const [isSpinning, setIsSpinning] = useState(false);
 	const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -245,6 +321,7 @@ export function ChangesHeader({
 	onViewModeChange,
 	showViewModeToggle = true,
 	worktreePath,
+	pullCount,
 	pr,
 	isPRStatusLoading,
 	canCreatePR,
@@ -270,6 +347,13 @@ export function ChangesHeader({
 				/>
 			)}
 			<RefreshButton onRefresh={onRefresh} />
+			<div className="flex items-center border-l border-border/50 ml-0.5 pl-0.5">
+				<FetchPullGroup
+					worktreePath={worktreePath}
+					pullCount={pullCount}
+					onRefresh={onRefresh}
+				/>
+			</div>
 			<PRButton
 				pr={pr}
 				isLoading={isPRStatusLoading}

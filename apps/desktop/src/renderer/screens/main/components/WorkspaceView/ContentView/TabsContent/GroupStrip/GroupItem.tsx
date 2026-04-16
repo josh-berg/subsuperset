@@ -72,6 +72,10 @@ export function GroupItem({
 		const tabPanes = Object.values(s.panes).filter((p) => p.tabId === tab.id);
 		const hasChat = tabPanes.some((p) => p.type === "chat");
 		if (hasChat) return "claude" as const;
+		const hasClaudeTerminal = tabPanes.some(
+			(p) => p.type === "terminal" && p.runningClaude,
+		);
+		if (hasClaudeTerminal) return "claude" as const;
 		const hasTerminal = tabPanes.some((p) => p.type === "terminal");
 		if (hasTerminal) return "terminal" as const;
 		const hasDiff = tabPanes.some(

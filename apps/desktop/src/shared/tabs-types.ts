@@ -147,6 +147,8 @@ export interface Pane {
 		state: "running" | "stopped-by-user" | "stopped-by-exit";
 		command?: string;
 	};
+	/** True when the `claude` CLI is detected running in this terminal pane's process tree. */
+	runningClaude?: boolean;
 }
 
 export type WorkspaceRunState = NonNullable<Pane["workspaceRun"]>["state"];

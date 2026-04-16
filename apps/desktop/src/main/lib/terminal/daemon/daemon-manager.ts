@@ -13,6 +13,7 @@ import type { ListSessionsResponse } from "../../terminal-host/types";
 import { raceWithAbort, throwIfAborted } from "../abort";
 import { buildTerminalEnv, getDefaultShell } from "../env";
 import { TerminalKilledError } from "../errors";
+import { claudeDetector } from "../claude-detector";
 import { portManager } from "../port-manager";
 import type { CreateSessionParams, SessionResult } from "../types";
 import {
@@ -136,13 +137,14 @@ export class DaemonTerminalManager extends EventEmitter {
 			);
 			this.daemonSessionIdsHydrated = true;
 
-			// Enable port scanning before user opens terminal tabs
+			// Enable port scanning and claude detection before user opens terminal tabs
 			for (const session of preservedSessions) {
 				portManager.upsertDaemonSession(
 					session.paneId,
 					session.workspaceId,
 					session.pid,
 				);
+				claudeDetector.upsertDaemonSession(session.paneId, session.pid);
 			}
 
 			const preservedCount = response.sessions.length - orphanedCount;
@@ -211,6 +213,7 @@ export class DaemonTerminalManager extends EventEmitter {
 				}
 
 				portManager.unregisterDaemonSession(paneId);
+				claudeDetector.unregisterDaemonSession(paneId);
 				this.historyManager.closeHistoryWriter(paneId, exitCode);
 				const reason =
 					session?.exitReason ??
@@ -512,6 +515,7 @@ export class DaemonTerminalManager extends EventEmitter {
 			});
 
 			portManager.upsertDaemonSession(paneId, workspaceId, response.pid);
+			claudeDetector.upsertDaemonSession(paneId, response.pid);
 
 			const snapshotAnsi = response.snapshot.snapshotAnsi || "";
 			const snapshotAnsiBytes = Buffer.byteLength(snapshotAnsi, "utf8");
@@ -723,6 +727,7 @@ export class DaemonTerminalManager extends EventEmitter {
 		}
 
 		portManager.unregisterDaemonSession(paneId);
+		claudeDetector.unregisterDaemonSession(paneId);
 
 		if (deleteHistory && session) {
 			await this.historyManager.cleanupHistory(paneId, session.workspaceId);
@@ -856,6 +861,7 @@ export class DaemonTerminalManager extends EventEmitter {
 				}
 
 				portManager.unregisterDaemonSession(paneId);
+				claudeDetector.unregisterDaemonSession(paneId);
 				await this.historyManager.cleanupHistory(paneId, workspaceId);
 				await this.client.kill({ sessionId: paneId, deleteHistory: true });
 			}),
@@ -975,6 +981,7 @@ export class DaemonTerminalManager extends EventEmitter {
 		}
 		for (const paneId of sessionIds) {
 			portManager.unregisterDaemonSession(paneId);
+			claudeDetector.unregisterDaemonSession(paneId);
 		}
 		this.daemonAliveSessionIds.clear();
 		this.daemonSessionIdsHydrated = true;

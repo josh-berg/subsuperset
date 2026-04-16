@@ -1233,6 +1233,18 @@ export const useTabsStore = create<TabsStore>()(
 					});
 				},
 
+				setPaneClaudeRunning: (paneId, running) => {
+					const state = get();
+					const pane = state.panes[paneId];
+					if (!pane || pane.runningClaude === running) return;
+					set({
+						panes: {
+							...state.panes,
+							[paneId]: { ...pane, runningClaude: running },
+						},
+					});
+				},
+
 				setPaneName: (paneId, name) => {
 					const state = get();
 					const pane = state.panes[paneId];

@@ -495,6 +495,7 @@ export function ChangesView({
 						onViewModeChange={setFileListViewMode}
 						showViewModeToggle
 						worktreePath={worktreePath}
+						pullCount={status.pullCount}
 						pr={githubStatus?.pr ?? null}
 						isPRStatusLoading={isGitHubStatusLoading}
 						canCreatePR={prActionState.canCreatePR}

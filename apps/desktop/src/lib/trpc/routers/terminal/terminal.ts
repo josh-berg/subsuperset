@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { appState } from "main/lib/app-state";
 import { localDb } from "main/lib/local-db";
 import { restartDaemon as restartDaemonShared } from "main/lib/terminal";
+import { claudeDetector } from "main/lib/terminal/claude-detector";
 import {
 	isTerminalAttachCanceledError,
 	TERMINAL_ATTACH_CANCELED_MESSAGE,
@@ -516,5 +517,17 @@ export const createTerminalRouter = () => {
 					};
 				});
 			}),
+
+		claudeStatus: publicProcedure.subscription(() => {
+			return observable<{ paneId: string; running: boolean }>((emit) => {
+				const onChange = (event: { paneId: string; running: boolean }) => {
+					emit.next(event);
+				};
+				claudeDetector.on("change", onChange);
+				return () => {
+					claudeDetector.off("change", onChange);
+				};
+			});
+		}),
 	});
 };

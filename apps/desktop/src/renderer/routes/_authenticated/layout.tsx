@@ -16,6 +16,7 @@ import { WorkspaceInitEffects } from "renderer/screens/main/components/Workspace
 import { useSettingsStore } from "renderer/stores/settings-state";
 import { useTabsStore } from "renderer/stores/tabs/store";
 import { useAgentHookListener } from "renderer/stores/tabs/useAgentHookListener";
+import { useClaudeRunningListener } from "renderer/stores/tabs/useClaudeRunningListener";
 import { setPaneWorkspaceRunState } from "renderer/stores/tabs/workspace-run";
 import { useWorkspaceInitStore } from "renderer/stores/workspace-init";
 import { NOTIFICATION_EVENTS } from "shared/constants";
@@ -36,6 +37,7 @@ function AppLayout() {
 	const shownWorkspaceInitWarningsRef = useRef(new Set<string>());
 
 	useAgentHookListener();
+	useClaudeRunningListener();
 
 	// One-time migration from old hotkey storage to new localStorage-based store
 	useEffect(() => {
