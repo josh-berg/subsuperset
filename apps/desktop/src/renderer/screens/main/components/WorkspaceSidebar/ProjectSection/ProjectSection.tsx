@@ -38,6 +38,7 @@ interface ProjectSectionProps {
 	hideImage: boolean;
 	iconUrl: string | null;
 	iconLetter: string | null;
+	isGitless: boolean;
 	workspaces: SidebarWorkspace[];
 	sections: SidebarSection[];
 	topLevelItems: {
@@ -62,6 +63,7 @@ export function ProjectSection({
 	hideImage,
 	iconUrl,
 	iconLetter,
+	isGitless,
 	workspaces,
 	sections,
 	topLevelItems,
@@ -245,6 +247,7 @@ export function ProjectSection({
 						hideImage={hideImage}
 						iconUrl={iconUrl}
 						iconLetter={iconLetter}
+						isGitless={isGitless}
 						isCollapsed={isCollapsed}
 						isSidebarCollapsed={isSidebarCollapsed}
 						onToggleCollapse={() => toggleProjectCollapsed(projectId)}
@@ -285,6 +288,7 @@ export function ProjectSection({
 											branch={item.workspace.branch}
 											type={item.workspace.type}
 											isUnread={item.workspace.isUnread}
+											isGitless={item.workspace.isGitless}
 											index={item.topLevelIndex}
 											shortcutIndex={item.shortcutIndex}
 											isCollapsed={isSidebarCollapsed}
@@ -348,6 +352,7 @@ export function ProjectSection({
 					hideImage={hideImage}
 					iconUrl={iconUrl}
 					iconLetter={iconLetter}
+					isGitless={isGitless}
 					isCollapsed={isCollapsed}
 					isSidebarCollapsed={isSidebarCollapsed}
 					onToggleCollapse={() => toggleProjectCollapsed(projectId)}
@@ -401,6 +406,7 @@ export function ProjectSection({
 										branch={item.workspace.branch}
 										type={item.workspace.type}
 										isUnread={item.workspace.isUnread}
+										isGitless={item.workspace.isGitless}
 										index={item.topLevelIndex}
 										shortcutIndex={item.shortcutIndex}
 										sectionId={null}

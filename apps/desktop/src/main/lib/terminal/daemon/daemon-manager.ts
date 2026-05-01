@@ -11,9 +11,9 @@ import {
 } from "../../terminal-host/client";
 import type { ListSessionsResponse } from "../../terminal-host/types";
 import { raceWithAbort, throwIfAborted } from "../abort";
+import { claudeDetector } from "../claude-detector";
 import { buildTerminalEnv, getDefaultShell } from "../env";
 import { TerminalKilledError } from "../errors";
-import { claudeDetector } from "../claude-detector";
 import { portManager } from "../port-manager";
 import type { CreateSessionParams, SessionResult } from "../types";
 import {

@@ -73,6 +73,7 @@ export const createQueryProcedures = () => {
 								mainRepoPath: project.mainRepoPath,
 								githubOwner: project.githubOwner ?? null,
 								defaultBranch: project.defaultBranch ?? null,
+								isGitless: project.isGitless ?? false,
 							}
 						: null,
 					worktree: worktree
@@ -111,6 +112,7 @@ export const createQueryProcedures = () => {
 				lastOpenedAt: number;
 				isUnread: boolean;
 				isUnnamed: boolean;
+				isGitless: boolean;
 				createdBySuperset: boolean | null;
 			};
 
@@ -159,6 +161,7 @@ export const createQueryProcedures = () => {
 						hideImage: boolean;
 						iconUrl: string | null;
 						iconLetter: string | null;
+						isGitless: boolean;
 					};
 					workspaces: WorkspaceItem[];
 					sections: SectionItem[];
@@ -192,6 +195,7 @@ export const createQueryProcedures = () => {
 						hideImage: project.hideImage ?? false,
 						iconUrl: project.iconUrl ?? null,
 						iconLetter: project.iconLetter ?? null,
+						isGitless: project.isGitless ?? false,
 					},
 					workspaces: [],
 					sections: projectSections,
@@ -223,6 +227,7 @@ export const createQueryProcedures = () => {
 						worktreePath,
 						isUnread: workspace.isUnread ?? false,
 						isUnnamed: workspace.isUnnamed ?? false,
+						isGitless: group.project.isGitless,
 						createdBySuperset: workspace.worktreeId
 							? (worktreeCreatedBySupersetMap.get(workspace.worktreeId) ?? null)
 							: null,

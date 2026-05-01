@@ -171,6 +171,34 @@ function upsertProject(mainRepoPath: string, defaultBranch: string): Project {
 	return project;
 }
 
+async function ensureGitlessWorkspace(project: Project): Promise<void> {
+	const existingWorkspace = getBranchWorkspace(project.id);
+	if (existingWorkspace) {
+		touchWorkspace(existingWorkspace.id);
+		setLastActiveWorkspace(existingWorkspace.id);
+		return;
+	}
+
+	const insertResult = localDb
+		.insert(workspaces)
+		.values({
+			projectId: project.id,
+			type: "branch",
+			branch: "",
+			name: "default",
+			tabOrder: 0,
+		})
+		.onConflictDoNothing()
+		.returning()
+		.all();
+
+	const workspace = insertResult[0] ?? getBranchWorkspace(project.id);
+	if (!workspace) return;
+
+	setLastActiveWorkspace(workspace.id);
+	activateProject(project);
+}
+
 async function ensureMainWorkspace(project: Project): Promise<void> {
 	const existingBranchWorkspace = getBranchWorkspace(project.id);
 
@@ -1208,6 +1236,80 @@ export const createProjectsRouter = (getWindow: () => BrowserWindow | null) => {
 				});
 
 				return { project };
+			}),
+
+		openAsGitless: publicProcedure
+			.input(z.object({ path: z.string() }))
+			.mutation(async ({ input }) => {
+				const selectedPath = input.path;
+
+				if (!existsSync(selectedPath)) {
+					return { canceled: false as const, error: "Path does not exist" };
+				}
+
+				try {
+					const stats = statSync(selectedPath);
+					if (!stats.isDirectory()) {
+						return {
+							canceled: false as const,
+							error: "Path is not a directory",
+						};
+					}
+				} catch {
+					return {
+						canceled: false as const,
+						error: "Could not access the path",
+					};
+				}
+
+				// Reject paths that already have git initialized
+				try {
+					await getGitRoot(selectedPath);
+					return {
+						canceled: false as const,
+						error: "This folder already has git initialized",
+					};
+				} catch (error) {
+					if (!(error instanceof NotGitRepoError)) throw error;
+				}
+
+				// Reuse existing project record if already opened
+				const existing = localDb
+					.select()
+					.from(projects)
+					.where(eq(projects.mainRepoPath, selectedPath))
+					.get();
+
+				if (existing) {
+					localDb
+						.update(projects)
+						.set({ lastOpenedAt: Date.now() })
+						.where(eq(projects.id, existing.id))
+						.run();
+					await ensureGitlessWorkspace({
+						...existing,
+						lastOpenedAt: Date.now(),
+					});
+					return { canceled: false as const, project: existing };
+				}
+
+				const name = basename(selectedPath);
+				const project = localDb
+					.insert(projects)
+					.values({
+						mainRepoPath: selectedPath,
+						name,
+						color: getDefaultProjectColor(),
+						isGitless: true,
+					})
+					.returning()
+					.get();
+
+				await ensureGitlessWorkspace(project);
+
+				track("project_opened", { project_id: project.id, method: "gitless" });
+
+				return { canceled: false as const, project };
 			}),
 
 		cloneRepo: publicProcedure

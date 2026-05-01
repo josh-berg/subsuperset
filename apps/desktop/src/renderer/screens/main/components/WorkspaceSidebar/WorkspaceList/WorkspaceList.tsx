@@ -30,6 +30,7 @@ export function WorkspaceList({
 					branch={workspace.branch}
 					type={workspace.type}
 					isUnread={workspace.isUnread}
+					isGitless={workspace.isGitless}
 					index={wsIndex}
 					shortcutIndex={shortcutBaseIndex + wsIndex}
 					isCollapsed={isCollapsed}

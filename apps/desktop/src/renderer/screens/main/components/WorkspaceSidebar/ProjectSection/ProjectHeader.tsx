@@ -43,6 +43,7 @@ interface ProjectHeaderProps {
 	hideImage: boolean;
 	iconUrl: string | null;
 	iconLetter: string | null;
+	isGitless: boolean;
 	/** Whether the project section is collapsed (workspaces hidden) */
 	isCollapsed: boolean;
 	/** Whether the sidebar is in collapsed mode (icon-only view) */
@@ -61,6 +62,7 @@ export function ProjectHeader({
 	hideImage,
 	iconUrl,
 	iconLetter,
+	isGitless,
 	isCollapsed,
 	isSidebarCollapsed = false,
 	onToggleCollapse,
@@ -311,24 +313,26 @@ export function ProjectHeader({
 							</button>
 						)}
 
-						<Tooltip delayDuration={500}>
-							<TooltipTrigger asChild>
-								<button
-									type="button"
-									onClick={(e) => {
-										e.stopPropagation();
-										onNewWorkspace();
-									}}
-									onContextMenu={(e) => e.stopPropagation()}
-									className="p-1 rounded hover:bg-muted transition-colors shrink-0 ml-1"
-								>
-									<HiMiniPlus className="size-4 text-muted-foreground" />
-								</button>
-							</TooltipTrigger>
-							<TooltipContent side="bottom" sideOffset={4}>
-								New workspace
-							</TooltipContent>
-						</Tooltip>
+						{!isGitless && (
+							<Tooltip delayDuration={500}>
+								<TooltipTrigger asChild>
+									<button
+										type="button"
+										onClick={(e) => {
+											e.stopPropagation();
+											onNewWorkspace();
+										}}
+										onContextMenu={(e) => e.stopPropagation()}
+										className="p-1 rounded hover:bg-muted transition-colors shrink-0 ml-1"
+									>
+										<HiMiniPlus className="size-4 text-muted-foreground" />
+									</button>
+								</TooltipTrigger>
+								<TooltipContent side="bottom" sideOffset={4}>
+									New workspace
+								</TooltipContent>
+							</Tooltip>
+						)}
 
 						<button
 							type="button"

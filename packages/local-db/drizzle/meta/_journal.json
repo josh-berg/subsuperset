@@ -281,6 +281,13 @@
       "when": 1776289891272,
       "tag": "0039_add_icon_letter_to_projects",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "6",
+      "when": 1777648389518,
+      "tag": "0040_aspiring_hairball",
+      "breakpoints": true
     }
   ]
 }

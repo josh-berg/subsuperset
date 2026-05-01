@@ -19,6 +19,7 @@ export function useOpenProject() {
 	const openNewMutation = useOpenNew();
 	const openFromPathMutation = useOpenFromPath();
 	const initGitAndOpen = electronTrpc.projects.initGitAndOpen.useMutation();
+	const openAsGitless = electronTrpc.projects.openAsGitless.useMutation();
 	const utils = electronTrpc.useUtils();
 
 	const pendingRef = useRef<PendingGitInit | null>(null);
@@ -61,6 +62,40 @@ export function useOpenProject() {
 						p.resolve(projects);
 					}
 				},
+				onOpenGitless: async () => {
+					const p = pendingRef.current;
+					if (!p) return;
+
+					useGitInitDialogStore.getState().setIsPending(true);
+
+					const projects: Project[] = [...p.immediateSuccesses];
+
+					try {
+						for (const path of p.paths) {
+							try {
+								const result = await openAsGitless.mutateAsync({ path });
+								if (!result.canceled && "project" in result && result.project) {
+									projects.push(result.project);
+								}
+							} catch (error) {
+								console.error(
+									"[useOpenProject] Failed to open as gitless:",
+									path,
+									error,
+								);
+							}
+						}
+
+						await Promise.all([
+							utils.projects.getRecents.invalidate(),
+							invalidateWorkspaceQueries(utils),
+						]);
+					} finally {
+						useGitInitDialogStore.getState().close();
+						pendingRef.current = null;
+						p.resolve(projects);
+					}
+				},
 				onCancel: () => {
 					const p = pendingRef.current;
 					if (!p) return;
@@ -71,7 +106,7 @@ export function useOpenProject() {
 				},
 			});
 		},
-		[initGitAndOpen, utils],
+		[initGitAndOpen, openAsGitless, utils],
 	);
 
 	const openNew = useCallback((): Promise<Project[]> => {
@@ -166,6 +201,7 @@ export function useOpenProject() {
 		isPending:
 			openNewMutation.isPending ||
 			openFromPathMutation.isPending ||
-			initGitAndOpen.isPending,
+			initGitAndOpen.isPending ||
+			openAsGitless.isPending,
 	};
 }

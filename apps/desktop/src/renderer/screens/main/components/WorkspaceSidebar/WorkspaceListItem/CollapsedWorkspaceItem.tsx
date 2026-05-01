@@ -28,6 +28,7 @@ interface CollapsedWorkspaceItemProps {
 	type: "worktree" | "branch";
 	isActive: boolean;
 	isUnread: boolean;
+	isGitless?: boolean;
 	workspaceStatus: ActivePaneStatus | null;
 	itemRef: RefObject<HTMLButtonElement | null>;
 	showDeleteDialog: boolean;
@@ -45,6 +46,7 @@ export function CollapsedWorkspaceItem({
 	type,
 	isActive,
 	isUnread,
+	isGitless = false,
 	workspaceStatus,
 	itemRef,
 	showDeleteDialog,
@@ -81,6 +83,7 @@ export function CollapsedWorkspaceItem({
 		>
 			<WorkspaceIcon
 				isBranchWorkspace={isBranchWorkspace}
+				isGitless={isGitless}
 				isActive={isActive}
 				isUnread={isUnread}
 				workspaceStatus={workspaceStatus}
@@ -95,10 +98,16 @@ export function CollapsedWorkspaceItem({
 				<Tooltip delayDuration={300}>
 					<TooltipTrigger asChild>{collapsedButton}</TooltipTrigger>
 					<TooltipContent side="right" className="flex flex-col gap-0.5">
-						<span className="font-medium">local</span>
-						<span className="text-xs text-muted-foreground font-mono">
-							{branch}
-						</span>
+						{isGitless ? (
+							<span className="font-medium">folder</span>
+						) : (
+							<>
+								<span className="font-medium">local</span>
+								<span className="text-xs text-muted-foreground font-mono">
+									{branch}
+								</span>
+							</>
+						)}
 					</TooltipContent>
 				</Tooltip>
 				<DeleteWorkspaceDialog

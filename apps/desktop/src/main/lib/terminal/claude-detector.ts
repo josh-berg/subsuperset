@@ -1,5 +1,5 @@
-import { EventEmitter } from "node:events";
 import { exec } from "node:child_process";
+import { EventEmitter } from "node:events";
 import os from "node:os";
 import { promisify } from "node:util";
 import { getProcessTree } from "./port-scanner";
@@ -41,7 +41,10 @@ class ClaudeDetector extends EventEmitter {
 		const wasRunning = this.claudeRunning.get(paneId) ?? false;
 		this.claudeRunning.delete(paneId);
 		if (wasRunning) {
-			this.emit("change", { paneId, running: false } satisfies ClaudeChangeEvent);
+			this.emit("change", {
+				paneId,
+				running: false,
+			} satisfies ClaudeChangeEvent);
 		}
 	}
 
@@ -128,7 +131,9 @@ async function checkClaudeInPidsWindows(pids: number[]): Promise<boolean> {
 			`powershell -NoProfile -Command "Get-Process -Id ${pidList} -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name"`,
 			{ timeout: EXEC_TIMEOUT_MS },
 		);
-		return stdout.split("\n").some((line) => line.trim().toLowerCase() === "claude");
+		return stdout
+			.split("\n")
+			.some((line) => line.trim().toLowerCase() === "claude");
 	} catch {
 		return false;
 	}

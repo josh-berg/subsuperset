@@ -141,8 +141,8 @@ export function CommitInput({
 	};
 	const handlePull = () => pullMutation.mutate({ worktreePath });
 	const handleSync = () => syncMutation.mutate({ worktreePath });
-	const handleFetch = () => fetchMutation.mutate({ worktreePath });
-	const handleFetchAndPull = () => {
+	const _handleFetch = () => fetchMutation.mutate({ worktreePath });
+	const _handleFetchAndPull = () => {
 		fetchMutation.mutate(
 			{ worktreePath },
 			{ onSuccess: () => pullMutation.mutate({ worktreePath }) },

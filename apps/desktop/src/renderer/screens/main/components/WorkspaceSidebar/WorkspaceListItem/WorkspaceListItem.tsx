@@ -41,6 +41,7 @@ interface WorkspaceListItemProps {
 	branch: string;
 	type: "worktree" | "branch";
 	isUnread?: boolean;
+	isGitless?: boolean;
 	index: number;
 	shortcutIndex?: number;
 	isCollapsed?: boolean;
@@ -57,6 +58,7 @@ export function WorkspaceListItem({
 	branch,
 	type,
 	isUnread = false,
+	isGitless = false,
 	index,
 	shortcutIndex,
 	isCollapsed = false,
@@ -166,7 +168,7 @@ export function WorkspaceListItem({
 		electronTrpc.workspaces.getAheadBehind.useQuery(
 			{ workspaceId: id },
 			{
-				enabled: isBranchWorkspace,
+				enabled: isBranchWorkspace && !isGitless,
 				staleTime: GITHUB_STATUS_STALE_TIME,
 			},
 		);
@@ -252,7 +254,7 @@ export function WorkspaceListItem({
 			? { additions: pr.additions, deletions: pr.deletions }
 			: null);
 
-	const hasPrBadgeRow = !!pr || isBranchWorkspace;
+	const hasPrBadgeRow = (!!pr || isBranchWorkspace) && !isGitless;
 
 	if (isCollapsed) {
 		return (
@@ -263,6 +265,7 @@ export function WorkspaceListItem({
 				type={type}
 				isActive={isActive}
 				isUnread={isUnread}
+				isGitless={isGitless}
 				workspaceStatus={workspaceStatus}
 				itemRef={collapsedItemRef}
 				showDeleteDialog={showDeleteDialog}
@@ -322,6 +325,7 @@ export function WorkspaceListItem({
 						<div className="relative size-5 flex items-center justify-center">
 							<WorkspaceIcon
 								isBranchWorkspace={isBranchWorkspace}
+								isGitless={isGitless}
 								isActive={isActive}
 								isUnread={isUnread}
 								workspaceStatus={workspaceStatus}
@@ -330,7 +334,14 @@ export function WorkspaceListItem({
 						</div>
 					</TooltipTrigger>
 					<TooltipContent side="right" sideOffset={8}>
-						{isBranchWorkspace ? (
+						{isGitless ? (
+							<>
+								<p className="text-xs font-medium">Folder workspace</p>
+								<p className="text-xs text-muted-foreground">
+									Not version controlled
+								</p>
+							</>
+						) : isBranchWorkspace ? (
 							<>
 								<p className="text-xs font-medium">Local workspace</p>
 								<p className="text-xs text-muted-foreground">
@@ -435,7 +446,7 @@ export function WorkspaceListItem({
 							</div>
 						</div>
 
-						{isBranchWorkspace && (
+						{isBranchWorkspace && !isGitless && (
 							<div className="flex">
 								<button
 									type="button"
@@ -494,7 +505,7 @@ export function WorkspaceListItem({
 				open={showDeleteDialog}
 				onOpenChange={setShowDeleteDialog}
 			/>
-			{isBranchWorkspace && (
+			{isBranchWorkspace && !isGitless && (
 				<SwitchBranchDialog
 					open={showSwitchBranchDialog}
 					onOpenChange={setShowSwitchBranchDialog}

@@ -6,10 +6,12 @@ interface GitInitDialogState {
 	isPending: boolean;
 	paths: string[];
 	onConfirm: (() => void) | null;
+	onOpenGitless: (() => void) | null;
 	onCancel: (() => void) | null;
 	open: (params: {
 		paths: string[];
 		onConfirm: () => void;
+		onOpenGitless: () => void;
 		onCancel: () => void;
 	}) => void;
 	setIsPending: (isPending: boolean) => void;
@@ -23,10 +25,18 @@ export const useGitInitDialogStore = create<GitInitDialogState>()(
 			isPending: false,
 			paths: [],
 			onConfirm: null,
+			onOpenGitless: null,
 			onCancel: null,
 
-			open: ({ paths, onConfirm, onCancel }) => {
-				set({ isOpen: true, isPending: false, paths, onConfirm, onCancel });
+			open: ({ paths, onConfirm, onOpenGitless, onCancel }) => {
+				set({
+					isOpen: true,
+					isPending: false,
+					paths,
+					onConfirm,
+					onOpenGitless,
+					onCancel,
+				});
 			},
 
 			setIsPending: (isPending) => {
@@ -39,6 +49,7 @@ export const useGitInitDialogStore = create<GitInitDialogState>()(
 					isPending: false,
 					paths: [],
 					onConfirm: null,
+					onOpenGitless: null,
 					onCancel: null,
 				});
 			},

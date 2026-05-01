@@ -46,6 +46,7 @@ export const projects = sqliteTable(
 		iconUrl: text("icon_url"),
 		iconLetter: text("icon_letter"),
 		defaultApp: text("default_app").$type<ExternalApp>(),
+		isGitless: integer("is_gitless", { mode: "boolean" }).default(false),
 	},
 	(table) => [
 		index("projects_main_repo_path_idx").on(table.mainRepoPath),
