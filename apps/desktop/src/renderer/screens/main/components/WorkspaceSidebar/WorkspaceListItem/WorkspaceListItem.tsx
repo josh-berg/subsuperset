@@ -247,6 +247,11 @@ export function WorkspaceListItem({
 		toast.success("Path copied to clipboard");
 	};
 
+	const handleCopyBranch = async () => {
+		await copyToClipboard(branch);
+		toast.success("Branch name copied to clipboard");
+	};
+
 	const pr = githubStatus?.pr;
 	const diffStats =
 		localDiffStats ||
@@ -492,6 +497,7 @@ export function WorkspaceListItem({
 				onOpenInFinder={handleOpenInFinder}
 				onOpenInEditor={handleOpenInEditor}
 				onCopyPath={handleCopyPath}
+				onCopyBranch={isGitless ? undefined : handleCopyBranch}
 				onSetUnread={(unread) => setUnread.mutate({ id, isUnread: unread })}
 				onResetStatus={() => resetWorkspaceStatus(id)}
 				onDelete={handleDeleteClick}

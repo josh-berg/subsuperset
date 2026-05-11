@@ -51,6 +51,7 @@ interface WorkspaceContextMenuProps {
 	onOpenInFinder: () => void;
 	onOpenInEditor: () => void;
 	onCopyPath: () => void;
+	onCopyBranch?: () => void;
 	onSetUnread: (isUnread: boolean) => void;
 	onResetStatus: () => void;
 	onDelete: () => void;
@@ -70,6 +71,7 @@ export function WorkspaceContextMenu({
 	onOpenInFinder,
 	onOpenInEditor,
 	onCopyPath,
+	onCopyBranch,
 	onSetUnread,
 	onResetStatus,
 	onDelete,
@@ -152,6 +154,12 @@ export function WorkspaceContextMenu({
 				<LuCopy className="size-4 mr-2" strokeWidth={STROKE_WIDTH} />
 				Copy Path
 			</ContextMenuItem>
+			{onCopyBranch && (
+				<ContextMenuItem onSelect={onCopyBranch}>
+					<LuCopy className="size-4 mr-2" strokeWidth={STROKE_WIDTH} />
+					Copy Branch Name
+				</ContextMenuItem>
+			)}
 			<ContextMenuSeparator />
 			<ContextMenuSub>
 				<ContextMenuSubTrigger>
