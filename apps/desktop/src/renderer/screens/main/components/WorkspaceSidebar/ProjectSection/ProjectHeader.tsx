@@ -44,6 +44,7 @@ interface ProjectHeaderProps {
 	iconUrl: string | null;
 	iconLetter: string | null;
 	isGitless: boolean;
+	isFeatureProject?: boolean;
 	/** Whether the project section is collapsed (workspaces hidden) */
 	isCollapsed: boolean;
 	/** Whether the sidebar is in collapsed mode (icon-only view) */
@@ -63,6 +64,7 @@ export function ProjectHeader({
 	iconUrl,
 	iconLetter,
 	isGitless,
+	isFeatureProject = false,
 	isCollapsed,
 	isSidebarCollapsed = false,
 	onToggleCollapse,
@@ -202,6 +204,7 @@ export function ProjectHeader({
 										iconUrl={iconUrl}
 										iconLetter={iconLetter}
 										hideImage={hideImage}
+										isFeatureProject={isFeatureProject}
 									/>
 								</button>
 							</TooltipTrigger>
@@ -281,6 +284,7 @@ export function ProjectHeader({
 									hideImage={hideImage}
 									iconUrl={iconUrl}
 									iconLetter={iconLetter}
+									isFeatureProject={isFeatureProject}
 								/>
 								<RenameInput
 									value={rename.renameValue}
@@ -305,6 +309,7 @@ export function ProjectHeader({
 									hideImage={hideImage}
 									iconUrl={iconUrl}
 									iconLetter={iconLetter}
+									isFeatureProject={isFeatureProject}
 								/>
 								<span className="truncate">{projectName}</span>
 								<span className="text-xs text-muted-foreground tabular-nums font-normal">

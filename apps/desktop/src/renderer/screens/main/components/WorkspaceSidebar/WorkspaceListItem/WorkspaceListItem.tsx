@@ -42,6 +42,7 @@ interface WorkspaceListItemProps {
 	type: "worktree" | "branch";
 	isUnread?: boolean;
 	isGitless?: boolean;
+	isFeatureProject?: boolean;
 	index: number;
 	shortcutIndex?: number;
 	isCollapsed?: boolean;
@@ -59,6 +60,7 @@ export function WorkspaceListItem({
 	type,
 	isUnread = false,
 	isGitless = false,
+	isFeatureProject = false,
 	index,
 	shortcutIndex,
 	isCollapsed = false,
@@ -271,6 +273,7 @@ export function WorkspaceListItem({
 				isActive={isActive}
 				isUnread={isUnread}
 				isGitless={isGitless}
+				isFeatureProject={isFeatureProject}
 				workspaceStatus={workspaceStatus}
 				itemRef={collapsedItemRef}
 				showDeleteDialog={showDeleteDialog}
@@ -331,6 +334,7 @@ export function WorkspaceListItem({
 							<WorkspaceIcon
 								isBranchWorkspace={isBranchWorkspace}
 								isGitless={isGitless}
+								isFeatureProject={isFeatureProject}
 								isActive={isActive}
 								isUnread={isUnread}
 								workspaceStatus={workspaceStatus}
@@ -339,7 +343,14 @@ export function WorkspaceListItem({
 						</div>
 					</TooltipTrigger>
 					<TooltipContent side="right" sideOffset={8}>
-						{isGitless ? (
+						{isGitless && isFeatureProject ? (
+							<>
+								<p className="text-xs font-medium">Project workspace</p>
+								<p className="text-xs text-muted-foreground">
+									Spans all repos in this feature project
+								</p>
+							</>
+						) : isGitless ? (
 							<>
 								<p className="text-xs font-medium">Folder workspace</p>
 								<p className="text-xs text-muted-foreground">
@@ -396,7 +407,9 @@ export function WorkspaceListItem({
 								)}
 							>
 								{isBranchWorkspace
-									? "local"
+									? isGitless && isFeatureProject
+										? "project"
+										: "local"
 									: (worktreePath.split("/").filter(Boolean).pop() ??
 										name ??
 										branch)}

@@ -1,5 +1,5 @@
 import { cn } from "@superset/ui/utils";
-import { LuFolder, LuFolderGit2, LuLaptop } from "react-icons/lu";
+import { LuFolder, LuFolderGit2, LuLaptop, LuLayers } from "react-icons/lu";
 import { AsciiSpinner } from "renderer/screens/main/components/AsciiSpinner";
 import { StatusIndicator } from "renderer/screens/main/components/StatusIndicator";
 import type { ActivePaneStatus } from "shared/tabs-types";
@@ -8,6 +8,7 @@ import { STROKE_WIDTH } from "../constants";
 interface WorkspaceIconProps {
 	isBranchWorkspace: boolean;
 	isGitless?: boolean;
+	isFeatureProject?: boolean;
 	isActive: boolean;
 	isUnread: boolean;
 	workspaceStatus: ActivePaneStatus | null;
@@ -22,6 +23,7 @@ const OVERLAY_POSITION = {
 export function WorkspaceIcon({
 	isBranchWorkspace,
 	isGitless = false,
+	isFeatureProject = false,
 	isActive,
 	isUnread,
 	workspaceStatus,
@@ -39,6 +41,8 @@ export function WorkspaceIcon({
 		<>
 			{workspaceStatus === "working" ? (
 				<AsciiSpinner className="text-base" />
+			) : isGitless && isFeatureProject ? (
+				<LuLayers className={iconClass} strokeWidth={STROKE_WIDTH} />
 			) : isGitless ? (
 				<LuFolder className={iconClass} strokeWidth={STROKE_WIDTH} />
 			) : isBranchWorkspace ? (

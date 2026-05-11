@@ -31,6 +31,7 @@ interface CollapsedWorkspaceItemProps {
 	isGitless?: boolean;
 	workspaceStatus: ActivePaneStatus | null;
 	itemRef: RefObject<HTMLButtonElement | null>;
+	isFeatureProject?: boolean;
 	showDeleteDialog: boolean;
 	setShowDeleteDialog: (open: boolean) => void;
 	onMouseEnter: () => void;
@@ -47,6 +48,7 @@ export function CollapsedWorkspaceItem({
 	isActive,
 	isUnread,
 	isGitless = false,
+	isFeatureProject = false,
 	workspaceStatus,
 	itemRef,
 	showDeleteDialog,
@@ -98,7 +100,9 @@ export function CollapsedWorkspaceItem({
 				<Tooltip delayDuration={300}>
 					<TooltipTrigger asChild>{collapsedButton}</TooltipTrigger>
 					<TooltipContent side="right" className="flex flex-col gap-0.5">
-						{isGitless ? (
+						{isGitless && isFeatureProject ? (
+							<span className="font-medium">project</span>
+						) : isGitless ? (
 							<span className="font-medium">folder</span>
 						) : (
 							<>

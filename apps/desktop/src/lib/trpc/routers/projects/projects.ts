@@ -47,6 +47,7 @@ import { execWithShellEnv } from "../workspaces/utils/shell-env";
 import { getDefaultProjectColor } from "./utils/colors";
 import { discoverAndSaveProjectIcon } from "./utils/favicon-discovery";
 import { fetchGitHubOwner, getGitHubAvatarUrl } from "./utils/github";
+import { ensureGitlessWorkspace } from "./utils/workspace-bootstrap";
 
 type Project = SelectProject;
 
@@ -169,34 +170,6 @@ function upsertProject(mainRepoPath: string, defaultBranch: string): Project {
 		.get();
 
 	return project;
-}
-
-async function ensureGitlessWorkspace(project: Project): Promise<void> {
-	const existingWorkspace = getBranchWorkspace(project.id);
-	if (existingWorkspace) {
-		touchWorkspace(existingWorkspace.id);
-		setLastActiveWorkspace(existingWorkspace.id);
-		return;
-	}
-
-	const insertResult = localDb
-		.insert(workspaces)
-		.values({
-			projectId: project.id,
-			type: "branch",
-			branch: "",
-			name: "default",
-			tabOrder: 0,
-		})
-		.onConflictDoNothing()
-		.returning()
-		.all();
-
-	const workspace = insertResult[0] ?? getBranchWorkspace(project.id);
-	if (!workspace) return;
-
-	setLastActiveWorkspace(workspace.id);
-	activateProject(project);
 }
 
 async function ensureMainWorkspace(project: Project): Promise<void> {
@@ -1700,6 +1673,46 @@ export const createProjectsRouter = (getWindow: () => BrowserWindow | null) => {
 					throw new Error("Project not found");
 				}
 
+				// For feature projects, cascade cleanup to all child repos first
+				const registry = getWorkspaceRuntimeRegistry();
+				const allDeletedWorkspaceIds: string[] = [];
+				if (project.isFeatureProject) {
+					const childProjects = localDb
+						.select()
+						.from(projects)
+						.where(eq(projects.parentProjectId, input.id))
+						.all();
+					for (const child of childProjects) {
+						const childWorkspaces = localDb
+							.select()
+							.from(workspaces)
+							.where(eq(workspaces.projectId, child.id))
+							.all();
+						for (const ws of childWorkspaces) {
+							const terminal = registry.getForWorkspaceId(ws.id).terminal;
+							await terminal.killByWorkspaceId(ws.id);
+						}
+						const childWorkspaceIds = childWorkspaces.map((w) => w.id);
+						allDeletedWorkspaceIds.push(...childWorkspaceIds);
+						if (childWorkspaceIds.length > 0) {
+							localDb
+								.delete(workspaces)
+								.where(inArray(workspaces.id, childWorkspaceIds))
+								.run();
+						}
+						localDb
+							.delete(worktrees)
+							.where(eq(worktrees.projectId, child.id))
+							.run();
+						localDb
+							.delete(workspaceSections)
+							.where(eq(workspaceSections.projectId, child.id))
+							.run();
+						deleteProjectIcon(child.id);
+						localDb.delete(projects).where(eq(projects.id, child.id)).run();
+					}
+				}
+
 				const projectWorkspaces = localDb
 					.select()
 					.from(workspaces)
@@ -1707,7 +1720,6 @@ export const createProjectsRouter = (getWindow: () => BrowserWindow | null) => {
 					.all();
 
 				let totalFailed = 0;
-				const registry = getWorkspaceRuntimeRegistry();
 				for (const workspace of projectWorkspaces) {
 					const terminal = registry.getForWorkspaceId(workspace.id).terminal;
 					const terminalResult = await terminal.killByWorkspaceId(workspace.id);
@@ -1715,6 +1727,7 @@ export const createProjectsRouter = (getWindow: () => BrowserWindow | null) => {
 				}
 
 				const closedWorkspaceIds = projectWorkspaces.map((w) => w.id);
+				allDeletedWorkspaceIds.push(...closedWorkspaceIds);
 
 				if (closedWorkspaceIds.length > 0) {
 					localDb
@@ -1737,11 +1750,11 @@ export const createProjectsRouter = (getWindow: () => BrowserWindow | null) => {
 
 				localDb.delete(projects).where(eq(projects.id, input.id)).run();
 
-				// Update active workspace if it was in this project
+				// Update active workspace if it was in this project or any child repos
 				const currentSettings = localDb.select().from(settings).get();
 				if (
 					currentSettings?.lastActiveWorkspaceId &&
-					closedWorkspaceIds.includes(currentSettings.lastActiveWorkspaceId)
+					allDeletedWorkspaceIds.includes(currentSettings.lastActiveWorkspaceId)
 				) {
 					setLastActiveWorkspace(selectNextActiveWorkspace());
 				}

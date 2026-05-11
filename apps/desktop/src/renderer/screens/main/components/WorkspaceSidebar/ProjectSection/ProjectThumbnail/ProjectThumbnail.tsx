@@ -1,5 +1,6 @@
 import { cn } from "@superset/ui/utils";
 import { useState } from "react";
+import { LuNetwork } from "react-icons/lu";
 import { electronTrpc } from "renderer/lib/electron-trpc";
 import { PROJECT_COLOR_DEFAULT } from "shared/constants/project-colors";
 
@@ -11,6 +12,7 @@ interface ProjectThumbnailProps {
 	hideImage?: boolean;
 	iconUrl?: string | null;
 	iconLetter?: string | null;
+	isFeatureProject?: boolean;
 	className?: string;
 }
 
@@ -59,6 +61,7 @@ export function ProjectThumbnail({
 	hideImage,
 	iconUrl,
 	iconLetter,
+	isFeatureProject = false,
 	className,
 }: ProjectThumbnailProps) {
 	const [imageError, setImageError] = useState(false);
@@ -152,7 +155,11 @@ export function ProjectThumbnail({
 			)}
 			style={fallbackStyle}
 		>
-			{displayLetter}
+			{isFeatureProject ? (
+				<LuNetwork className="size-3.5" strokeWidth={1.75} />
+			) : (
+				displayLetter
+			)}
 		</div>
 	);
 }

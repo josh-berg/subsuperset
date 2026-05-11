@@ -300,6 +300,26 @@ export function NewWorkspaceModalContent({
 					<CommandInput placeholder="Search repositories..." />
 					<CommandList className="!max-h-none flex-1 overflow-y-auto">
 						<CommandEmpty>No projects found.</CommandEmpty>
+						<CommandGroup forceMount>
+							<CommandItem
+								forceMount
+								onSelect={() => {
+									void openNew().then((projects) => {
+										if (projects.length > 0) {
+											handleProjectSelect(projects[0].id);
+										}
+									});
+								}}
+							>
+								<LuFolderOpen className="size-4" />
+								Open project
+							</CommandItem>
+							<CommandItem forceMount onSelect={onNewProject}>
+								<LuFolderGit className="size-4" />
+								New project
+							</CommandItem>
+						</CommandGroup>
+						<CommandSeparator alwaysRender />
 						<CommandGroup>
 							{recentProjects
 								.filter((p) => Boolean(p.id))
@@ -322,26 +342,6 @@ export function NewWorkspaceModalContent({
 										{project.name}
 									</CommandItem>
 								))}
-						</CommandGroup>
-						<CommandSeparator alwaysRender />
-						<CommandGroup forceMount>
-							<CommandItem
-								forceMount
-								onSelect={() => {
-									void openNew().then((projects) => {
-										if (projects.length > 0) {
-											handleProjectSelect(projects[0].id);
-										}
-									});
-								}}
-							>
-								<LuFolderOpen className="size-4" />
-								Open project
-							</CommandItem>
-							<CommandItem forceMount onSelect={onNewProject}>
-								<LuFolderGit className="size-4" />
-								New project
-							</CommandItem>
 						</CommandGroup>
 					</CommandList>
 				</Command>

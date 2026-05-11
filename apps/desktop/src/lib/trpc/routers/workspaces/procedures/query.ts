@@ -5,7 +5,7 @@ import {
 	worktrees,
 } from "@superset/local-db";
 import { TRPCError } from "@trpc/server";
-import { eq, isNotNull, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { localDb } from "main/lib/local-db";
 import { z } from "zod";
 import { publicProcedure, router } from "../../..";
@@ -132,6 +132,14 @@ export const createQueryProcedures = () => {
 				tabOrder: number;
 			};
 
+			type ChildRepoItem = {
+				id: string;
+				name: string;
+				mainRepoPath: string;
+				workspaceId: string | null;
+				workspaceBranch: string;
+			};
+
 			const activeProjects = localDb
 				.select()
 				.from(projects)
@@ -162,10 +170,12 @@ export const createQueryProcedures = () => {
 						iconUrl: string | null;
 						iconLetter: string | null;
 						isGitless: boolean;
+						isFeatureProject: boolean;
 					};
 					workspaces: WorkspaceItem[];
 					sections: SectionItem[];
 					topLevelItems: TopLevelItem[];
+					childProjects: ChildRepoItem[];
 				}
 			>();
 
@@ -196,10 +206,12 @@ export const createQueryProcedures = () => {
 						iconUrl: project.iconUrl ?? null,
 						iconLetter: project.iconLetter ?? null,
 						isGitless: project.isGitless ?? false,
+						isFeatureProject: project.isFeatureProject ?? false,
 					},
 					workspaces: [],
 					sections: projectSections,
 					topLevelItems: [],
+					childProjects: [],
 				});
 			}
 
@@ -246,6 +258,55 @@ export const createQueryProcedures = () => {
 					} else {
 						group.workspaces.push(item);
 					}
+				}
+			}
+
+			// Populate child repos for feature projects (one flat query, not per-project)
+			const featureProjectIds = activeProjects
+				.filter((p) => p.isFeatureProject)
+				.map((p) => p.id);
+
+			if (featureProjectIds.length > 0) {
+				const childProjects = localDb
+					.select()
+					.from(projects)
+					.where(inArray(projects.parentProjectId, featureProjectIds))
+					.all();
+
+				const childWorkspaces =
+					childProjects.length > 0
+						? localDb
+								.select()
+								.from(workspaces)
+								.where(
+									and(
+										inArray(
+											workspaces.projectId,
+											childProjects.map((c) => c.id),
+										),
+										isNull(workspaces.deletingAt),
+									),
+								)
+								.all()
+						: [];
+
+				const workspaceByProjectId = new Map(
+					childWorkspaces.map((ws) => [ws.projectId, ws]),
+				);
+
+				for (const child of childProjects) {
+					if (!child.parentProjectId) continue;
+					const group = groupsMap.get(child.parentProjectId);
+					if (!group) continue;
+
+					const ws = workspaceByProjectId.get(child.id);
+					group.childProjects.push({
+						id: child.id,
+						name: child.name,
+						mainRepoPath: child.mainRepoPath,
+						workspaceId: ws?.id ?? null,
+						workspaceBranch: ws?.branch ?? "",
+					});
 				}
 			}
 

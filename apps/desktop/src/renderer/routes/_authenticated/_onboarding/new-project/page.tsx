@@ -7,11 +7,13 @@ import {
 	LuFolderPlus,
 	LuGitBranch,
 	LuLayoutTemplate,
+	LuNetwork,
 	LuX,
 } from "react-icons/lu";
 import { electronTrpc } from "renderer/lib/electron-trpc";
 import { CloneRepoTab } from "./components/CloneRepoTab";
 import { EmptyRepoTab } from "./components/EmptyRepoTab";
+import { MultiRepoTab } from "./components/MultiRepoTab";
 import { PathSelector } from "./components/PathSelector";
 import { TemplateTab } from "./components/TemplateTab";
 import type { NewProjectMode } from "./constants";
@@ -39,6 +41,12 @@ const OPTIONS: {
 		label: "Clone",
 		description: "Clone from a remote URL",
 		icon: LuGitBranch,
+	},
+	{
+		mode: "multi-repo",
+		label: "Multi-repo",
+		description: "Feature across multiple repos",
+		icon: LuNetwork,
 	},
 	{
 		mode: "template",
@@ -78,7 +86,7 @@ function NewProjectPage() {
 
 						<PathSelector value={parentDir} onChange={setParentDir} />
 
-						<div className="grid grid-cols-3 gap-3">
+						<div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
 							{OPTIONS.map((option) => {
 								const selected = mode === option.mode;
 								return (
@@ -120,6 +128,9 @@ function NewProjectPage() {
 						)}
 						{mode === "clone" && (
 							<CloneRepoTab onError={setError} parentDir={parentDir} />
+						)}
+						{mode === "multi-repo" && (
+							<MultiRepoTab onError={setError} parentDir={parentDir} />
 						)}
 						{mode === "template" && (
 							<TemplateTab onError={setError} parentDir={parentDir} />

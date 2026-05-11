@@ -7,13 +7,18 @@ import { electronTrpc } from "renderer/lib/electron-trpc";
 import { useReorderProjects } from "renderer/react-query/projects";
 import { useWorkspaceSidebarStore } from "renderer/stores";
 import { useOpenNewWorkspaceModal } from "renderer/stores/new-workspace-modal";
+import { ChildRepoItem } from "../ChildRepoItem";
 import { useSectionDropZone } from "../hooks";
 import type { SidebarSection, SidebarWorkspace } from "../types";
 import { WorkspaceListItem } from "../WorkspaceListItem";
 import { WorkspaceSection } from "../WorkspaceSection";
 import { ProjectHeader } from "./ProjectHeader";
 
-const PROJECT_TYPE = "PROJECT";
+const PROJECT_DND_TYPES = {
+	normal: "PROJECT_NORMAL",
+	gitless: "PROJECT_GITLESS",
+	feature: "PROJECT_FEATURE",
+} as const;
 
 type TopLevelChild =
 	| {
@@ -29,6 +34,14 @@ type TopLevelChild =
 			shortcutBaseIndex: number;
 	  };
 
+interface ChildRepoProjectItem {
+	id: string;
+	name: string;
+	mainRepoPath: string;
+	workspaceId: string | null;
+	workspaceBranch: string;
+}
+
 interface ProjectSectionProps {
 	projectId: string;
 	projectName: string;
@@ -39,6 +52,8 @@ interface ProjectSectionProps {
 	iconUrl: string | null;
 	iconLetter: string | null;
 	isGitless: boolean;
+	isFeatureProject?: boolean;
+	childProjects?: ChildRepoProjectItem[];
 	workspaces: SidebarWorkspace[];
 	sections: SidebarSection[];
 	topLevelItems: {
@@ -64,6 +79,8 @@ export function ProjectSection({
 	iconUrl,
 	iconLetter,
 	isGitless,
+	isFeatureProject = false,
+	childProjects = [],
 	workspaces,
 	sections,
 	topLevelItems,
@@ -76,6 +93,11 @@ export function ProjectSection({
 	const openModal = useOpenNewWorkspaceModal();
 	const reorderProjects = useReorderProjects();
 	const utils = electronTrpc.useUtils();
+
+	const projectDndType =
+		PROJECT_DND_TYPES[
+			isFeatureProject ? "feature" : isGitless ? "gitless" : "normal"
+		];
 
 	const isCollapsed = isProjectCollapsed(projectId);
 	const totalWorkspaceCount =
@@ -161,7 +183,7 @@ export function ProjectSection({
 
 	const [{ isDragging }, drag] = useDrag(
 		() => ({
-			type: PROJECT_TYPE,
+			type: projectDndType,
 			item: { projectId, index, originalIndex: index },
 			end: (item, monitor) => {
 				if (!item) return;
@@ -181,11 +203,11 @@ export function ProjectSection({
 				isDragging: monitor.isDragging(),
 			}),
 		}),
-		[projectId, index, reorderProjects],
+		[projectId, index, reorderProjects, projectDndType],
 	);
 
 	const [, drop] = useDrop({
-		accept: PROJECT_TYPE,
+		accept: projectDndType,
 		hover: (item: {
 			projectId: string;
 			index: number;
@@ -289,6 +311,7 @@ export function ProjectSection({
 											type={item.workspace.type}
 											isUnread={item.workspace.isUnread}
 											isGitless={item.workspace.isGitless}
+											isFeatureProject={isFeatureProject}
 											index={item.topLevelIndex}
 											shortcutIndex={item.shortcutIndex}
 											isCollapsed={isSidebarCollapsed}
@@ -325,6 +348,19 @@ export function ProjectSection({
 										)}
 									/>
 								)}
+								{isFeatureProject && childProjects.length > 0 && (
+									<div className="flex flex-col items-center gap-0.5 pt-1">
+										{childProjects.map((child) => (
+											<ChildRepoItem
+												key={child.id}
+												workspaceId={child.workspaceId}
+												name={child.name}
+												branch={child.workspaceBranch}
+												isCollapsed={isSidebarCollapsed}
+											/>
+										))}
+									</div>
+								)}
 							</div>
 						</motion.div>
 					)}
@@ -353,6 +389,7 @@ export function ProjectSection({
 					iconUrl={iconUrl}
 					iconLetter={iconLetter}
 					isGitless={isGitless}
+					isFeatureProject={isFeatureProject}
 					isCollapsed={isCollapsed}
 					isSidebarCollapsed={isSidebarCollapsed}
 					onToggleCollapse={() => toggleProjectCollapsed(projectId)}
@@ -407,6 +444,7 @@ export function ProjectSection({
 										type={item.workspace.type}
 										isUnread={item.workspace.isUnread}
 										isGitless={item.workspace.isGitless}
+										isFeatureProject={isFeatureProject}
 										index={item.topLevelIndex}
 										shortcutIndex={item.shortcutIndex}
 										sectionId={null}
@@ -440,6 +478,18 @@ export function ProjectSection({
 										),
 									)}
 								/>
+							)}
+							{isFeatureProject && childProjects.length > 0 && (
+								<div className="flex flex-col gap-0.5 pt-1">
+									{childProjects.map((child) => (
+										<ChildRepoItem
+											key={child.id}
+											workspaceId={child.workspaceId}
+											name={child.name}
+											branch={child.workspaceBranch}
+										/>
+									))}
+								</div>
 							)}
 						</div>
 					</motion.div>

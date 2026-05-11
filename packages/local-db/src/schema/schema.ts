@@ -1,3 +1,4 @@
+import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { v4 as uuidv4 } from "uuid";
 
@@ -47,6 +48,13 @@ export const projects = sqliteTable(
 		iconLetter: text("icon_letter"),
 		defaultApp: text("default_app").$type<ExternalApp>(),
 		isGitless: integer("is_gitless", { mode: "boolean" }).default(false),
+		parentProjectId: text("parent_project_id").references(
+			(): AnySQLiteColumn => projects.id,
+			{ onDelete: "cascade" },
+		),
+		isFeatureProject: integer("is_feature_project", {
+			mode: "boolean",
+		}).default(false),
 	},
 	(table) => [
 		index("projects_main_repo_path_idx").on(table.mainRepoPath),

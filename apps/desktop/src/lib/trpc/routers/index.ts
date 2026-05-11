@@ -18,6 +18,7 @@ import { createNotificationsRouter } from "./notifications";
 import { createPermissionsRouter } from "./permissions";
 import { createPortsRouter } from "./ports";
 import { createProjectsRouter } from "./projects";
+import { createFeatureProjectsRouter } from "./projects/feature-projects";
 import { createResourceMetricsRouter } from "./resource-metrics";
 import { createRingtoneRouter } from "./ringtone";
 import { createSettingsRouter } from "./settings";
@@ -37,6 +38,7 @@ export const createAppRouter = (getWindow: () => BrowserWindow | null) => {
 		modelProviders: createModelProvidersRouter(),
 		window: createWindowRouter(getWindow),
 		projects: createProjectsRouter(getWindow),
+		featureProjects: createFeatureProjectsRouter(),
 		workspaces: createWorkspacesRouter(),
 		terminal: createTerminalRouter(),
 		changes: createChangesRouter(),
