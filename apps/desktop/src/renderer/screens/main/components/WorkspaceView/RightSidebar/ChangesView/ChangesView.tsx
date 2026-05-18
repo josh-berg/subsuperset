@@ -20,6 +20,7 @@ import { sidebarHeaderTabTriggerClassName } from "../headerTabStyles";
 import { ChangesHeader } from "./components/ChangesHeader";
 import { CommitInput } from "./components/CommitInput";
 import { CommitListVirtualized } from "./components/CommitListVirtualized";
+import { FetchPushPullBar } from "./components/FetchPushPullBar";
 import { FileList } from "./components/FileList";
 import { getPRActionState, shouldAutoCreatePRAfterPublish } from "./utils";
 
@@ -129,40 +130,6 @@ export function ChangesView({
 				toast.error(`Failed to delete file: ${error.message}`);
 			},
 		});
-
-	const stashMutation = electronTrpc.changes.stash.useMutation({
-		onSuccess: () => {
-			toast.success("Changes stashed");
-			refetch();
-		},
-		onError: (error) => {
-			console.error("Failed to stash:", error);
-			toast.error(`Failed to stash: ${error.message}`);
-		},
-	});
-
-	const stashIncludeUntrackedMutation =
-		electronTrpc.changes.stashIncludeUntracked.useMutation({
-			onSuccess: () => {
-				toast.success("All changes stashed (including untracked)");
-				refetch();
-			},
-			onError: (error) => {
-				console.error("Failed to stash:", error);
-				toast.error(`Failed to stash: ${error.message}`);
-			},
-		});
-
-	const stashPopMutation = electronTrpc.changes.stashPop.useMutation({
-		onSuccess: () => {
-			toast.success("Stash applied and removed");
-			refetch();
-		},
-		onError: (error) => {
-			console.error("Failed to pop stash:", error);
-			toast.error(`Failed to pop stash: ${error.message}`);
-		},
-	});
 
 	const activePullRequest = githubStatus?.pr ?? null;
 	const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -452,6 +419,13 @@ export function ChangesView({
 
 	return (
 		<div className="flex flex-col flex-1 min-h-0">
+			<FetchPushPullBar
+				worktreePath={worktreePath}
+				pullCount={status.pullCount}
+				pushCount={status.pushCount}
+				hasUpstream={status.hasUpstream}
+				onRefresh={handleRefresh}
+			/>
 			<Tabs
 				value={tab}
 				onValueChange={(v) => setTab(v as ChangesTab)}
@@ -495,21 +469,10 @@ export function ChangesView({
 						onViewModeChange={setFileListViewMode}
 						showViewModeToggle
 						worktreePath={worktreePath}
-						pullCount={status.pullCount}
 						pr={githubStatus?.pr ?? null}
 						isPRStatusLoading={isGitHubStatusLoading}
 						canCreatePR={prActionState.canCreatePR}
 						createPRBlockedReason={prActionState.createPRBlockedReason}
-						onStash={() => stashMutation.mutate({ worktreePath })}
-						onStashIncludeUntracked={() =>
-							stashIncludeUntrackedMutation.mutate({ worktreePath })
-						}
-						onStashPop={() => stashPopMutation.mutate({ worktreePath })}
-						isStashPending={
-							stashMutation.isPending ||
-							stashIncludeUntrackedMutation.isPending ||
-							stashPopMutation.isPending
-						}
 					/>
 					{!hasChanges ? (
 						<div className="flex flex-1 items-center justify-center px-4 text-center text-sm text-muted-foreground">
@@ -550,8 +513,6 @@ export function ChangesView({
 						<CommitInput
 							worktreePath={worktreePath}
 							hasStagedChanges={stagedFiles.length > 0}
-							pushCount={status.pushCount}
-							pullCount={status.pullCount}
 							hasUpstream={status.hasUpstream}
 							pullRequest={activePullRequest ?? null}
 							canCreatePR={prActionState.canCreatePR}

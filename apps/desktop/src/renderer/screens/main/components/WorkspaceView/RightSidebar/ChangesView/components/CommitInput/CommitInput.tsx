@@ -13,25 +13,19 @@ import { Textarea } from "@superset/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@superset/ui/tooltip";
 import { useState } from "react";
 import {
-	VscArrowDown,
 	VscArrowUp,
 	VscCheck,
 	VscChevronDown,
 	VscLinkExternal,
-	VscSync,
 } from "react-icons/vsc";
 import { electronTrpc } from "renderer/lib/electron-trpc";
 import { useCreateOrOpenPR } from "renderer/screens/main/hooks";
-import { getPrimaryAction } from "./utils/getPrimaryAction";
-import { getPushActionCopy } from "./utils/getPushActionCopy";
 
 type CommitInputPullRequest = NonNullable<GitHubStatus["pr"]>;
 
 interface CommitInputProps {
 	worktreePath: string;
 	hasStagedChanges: boolean;
-	pushCount: number;
-	pullCount: number;
 	hasUpstream: boolean;
 	pullRequest?: CommitInputPullRequest | null;
 	canCreatePR: boolean;
@@ -42,8 +36,6 @@ interface CommitInputProps {
 export function CommitInput({
 	worktreePath,
 	hasStagedChanges,
-	pushCount,
-	pullCount,
 	hasUpstream,
 	pullRequest,
 	canCreatePR,
@@ -70,52 +62,20 @@ export function CommitInput({
 		onError: (error) => toast.error(`Push failed: ${error.message}`),
 	});
 
-	const pullMutation = electronTrpc.changes.pull.useMutation({
-		onSuccess: () => {
-			toast.success("Pulled");
-			onRefresh();
-		},
-		onError: (error) => toast.error(`Pull failed: ${error.message}`),
-	});
-
-	const syncMutation = electronTrpc.changes.sync.useMutation({
-		onSuccess: () => {
-			toast.success("Synced");
-			onRefresh();
-		},
-		onError: (error) => toast.error(`Sync failed: ${error.message}`),
-	});
-
 	const { createOrOpenPR, isPending: isCreateOrOpenPRPending } =
 		useCreateOrOpenPR({
 			worktreePath,
 			onSuccess: onRefresh,
 		});
 
-	const fetchMutation = electronTrpc.changes.fetch.useMutation({
-		onSuccess: () => {
-			toast.success("Fetched");
-			onRefresh();
-		},
-		onError: (error) => toast.error(`Fetch failed: ${error.message}`),
-	});
-
 	const isPending =
 		commitMutation.isPending ||
 		pushMutation.isPending ||
-		pullMutation.isPending ||
-		syncMutation.isPending ||
-		isCreateOrOpenPRPending ||
-		fetchMutation.isPending;
+		isCreateOrOpenPRPending;
 
 	const canCommit = hasStagedChanges && commitMessage.trim();
 	const hasExistingPR = Boolean(pullRequest);
 	const prUrl = pullRequest?.url;
-	const pushActionCopy = getPushActionCopy({
-		hasUpstream,
-		pushCount,
-		pullRequest,
-	});
 
 	const handleCommit = () => {
 		if (!canCommit) return;
@@ -128,31 +88,13 @@ export function CommitInput({
 			{ worktreePath, setUpstream: true },
 			{
 				onSuccess: () => {
-					if (
-						isPublishing &&
-						!hasExistingPR &&
-						shouldAutoCreatePRAfterPublish
-					) {
+					if (isPublishing && !hasExistingPR && shouldAutoCreatePRAfterPublish) {
 						createOrOpenPR();
 					}
 				},
 			},
 		);
 	};
-	const handlePull = () => pullMutation.mutate({ worktreePath });
-	const handleSync = () => syncMutation.mutate({ worktreePath });
-	const _handleFetch = () => fetchMutation.mutate({ worktreePath });
-	const _handleFetchAndPull = () => {
-		fetchMutation.mutate(
-			{ worktreePath },
-			{ onSuccess: () => pullMutation.mutate({ worktreePath }) },
-		);
-	};
-	const handleCreatePR = () => {
-		if (!canCreatePR) return;
-		createOrOpenPR();
-	};
-	const handleOpenPR = () => prUrl && window.open(prUrl, "_blank");
 
 	const handleCommitAndPush = () => {
 		if (!canCommit) return;
@@ -170,49 +112,25 @@ export function CommitInput({
 				onSuccess: () => {
 					pushMutation.mutate(
 						{ worktreePath, setUpstream: true },
-						{ onSuccess: handleCreatePR },
+						{ onSuccess: () => createOrOpenPR() },
 					);
 				},
 			},
 		);
 	};
 
-	const primaryAction = getPrimaryAction({
-		canCommit: Boolean(canCommit),
-		hasStagedChanges,
-		isPending,
-		pushCount,
-		pullCount,
-		hasUpstream,
-		pushActionCopy,
-	});
-
-	const primary = {
-		...primaryAction,
-		icon:
-			primaryAction.action === "commit" ? (
-				<VscCheck className="size-4" />
-			) : primaryAction.action === "sync" ? (
-				<VscSync className="size-4" />
-			) : primaryAction.action === "pull" ? (
-				<VscArrowDown className="size-4" />
-			) : (
-				<VscArrowUp className="size-4" />
-			),
-		handler:
-			primaryAction.action === "commit"
-				? handleCommit
-				: primaryAction.action === "sync"
-					? handleSync
-					: primaryAction.action === "pull"
-						? handlePull
-						: handlePush,
+	const handleCreatePR = () => {
+		if (!canCreatePR) return;
+		createOrOpenPR();
 	};
 
-	const countBadge =
-		pushCount > 0 || pullCount > 0
-			? `${pullCount > 0 ? pullCount : ""}${pullCount > 0 && pushCount > 0 ? "/" : ""}${pushCount > 0 ? pushCount : ""}`
-			: null;
+	const handleOpenPR = () => prUrl && window.open(prUrl, "_blank");
+
+	const commitTooltip = !hasStagedChanges
+		? "No staged changes"
+		: !commitMessage.trim()
+			? "Enter a commit message"
+			: "Commit staged changes (⌘↵)";
 
 	return (
 		<div className="flex flex-col gap-1.5 px-2 py-2">
@@ -225,10 +143,11 @@ export function CommitInput({
 					if (
 						e.key === "Enter" &&
 						(e.metaKey || e.ctrlKey) &&
-						!primary.disabled
+						canCommit &&
+						!isPending
 					) {
 						e.preventDefault();
-						primary.handler();
+						handleCommit();
 					}
 				}}
 			/>
@@ -239,17 +158,14 @@ export function CommitInput({
 							variant="secondary"
 							size="sm"
 							className="flex-1 gap-1.5 h-7 text-xs"
-							onClick={primary.handler}
-							disabled={primary.disabled}
+							onClick={handleCommit}
+							disabled={!canCommit || isPending}
 						>
-							{primary.icon}
-							<span>{primary.label}</span>
-							{countBadge && (
-								<span className="text-[10px] opacity-70">{countBadge}</span>
-							)}
+							<VscCheck className="size-4" />
+							<span>Commit</span>
 						</Button>
 					</TooltipTrigger>
-					<TooltipContent side="bottom">{primary.tooltip}</TooltipContent>
+					<TooltipContent side="bottom">{commitTooltip}</TooltipContent>
 				</Tooltip>
 				<DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
 					<DropdownMenuTrigger asChild>
@@ -277,7 +193,7 @@ export function CommitInput({
 							className="text-xs"
 						>
 							<VscArrowUp className="size-3.5" />
-							Commit & Push
+							Commit &amp; Push
 						</DropdownMenuItem>
 						{!hasExistingPR && canCreatePR && (
 							<DropdownMenuItem
@@ -286,25 +202,9 @@ export function CommitInput({
 								className="text-xs"
 							>
 								<VscLinkExternal className="size-3.5" />
-								Commit, Push & Create PR
+								Commit, Push &amp; Create PR
 							</DropdownMenuItem>
 						)}
-
-						<DropdownMenuSeparator />
-
-						<DropdownMenuItem
-							onClick={handlePush}
-							disabled={pushCount === 0 && hasUpstream}
-							className="text-xs"
-						>
-							<VscArrowUp className="size-3.5" />
-							<span className="flex-1">{pushActionCopy.menuLabel}</span>
-							{pushCount > 0 && (
-								<span className="text-[10px] text-muted-foreground">
-									{pushCount}
-								</span>
-							)}
-						</DropdownMenuItem>
 
 						<DropdownMenuSeparator />
 

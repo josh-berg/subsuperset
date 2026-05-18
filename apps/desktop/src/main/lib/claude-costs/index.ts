@@ -32,6 +32,10 @@ let cachedSnapshot: ClaudeCostSnapshot | null = null;
 let cacheExpiresAt = 0;
 const CACHE_TTL_MS = 30_000;
 
+// Pricing is fetched live from LiteLLM once per hour; bundled pricing is used in between.
+let pricingFetchedAt = 0;
+const PRICING_TTL_MS = 60 * 60 * 1_000; // 1 hour
+
 function localDateString(ms: number): string {
 	const d = new Date(ms);
 	const y = d.getFullYear();
@@ -80,13 +84,17 @@ export async function collectClaudeCosts(
 	sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
 	const sinceKey = localDateString(sevenDaysAgo.getTime());
 
+	// Use live pricing once per hour; fall back to bundled pricing in between.
+	const shouldFetchPricing = now - pricingFetchedAt > PRICING_TTL_MS;
+
 	let dailyData: Awaited<ReturnType<typeof loadDailyUsageData>> = [];
 	try {
 		dailyData = await loadDailyUsageData({
 			since: sinceKey,
 			order: "asc",
-			offline: true, // Use bundled pricing — avoids a network call on every refresh
+			offline: !shouldFetchPricing,
 		});
+		if (shouldFetchPricing) pricingFetchedAt = now;
 	} catch (err) {
 		console.warn("[claude-costs] ccusage loadDailyUsageData failed:", err);
 		return buildEmptySnapshot(now);
