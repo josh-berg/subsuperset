@@ -1,6 +1,6 @@
 import { existsSync, statSync } from "node:fs";
 import { access, mkdir, rm } from "node:fs/promises";
-import { basename, join } from "node:path";
+import { basename, join, sep } from "node:path";
 import {
 	BRANCH_PREFIX_MODES,
 	EXTERNAL_APPS,
@@ -38,6 +38,8 @@ import {
 	getDefaultBranch,
 	getGitAuthorName,
 	getGitRoot,
+	hasUncommittedChanges,
+	hasUnpushedCommits,
 	NotGitRepoError,
 	refreshDefaultBranch,
 	sanitizeAuthorPrefix,
@@ -1660,8 +1662,87 @@ export const createProjectsRouter = (getWindow: () => BrowserWindow | null) => {
 				};
 			}),
 
-		close: publicProcedure
+		getCloseWarnings: publicProcedure
 			.input(z.object({ id: z.string() }))
+			.query(async ({ input }) => {
+				const project = localDb
+					.select()
+					.from(projects)
+					.where(eq(projects.id, input.id))
+					.get();
+
+				if (!project || project.isGitless) {
+					return { warnings: [] };
+				}
+
+				const projectWorktrees = localDb
+					.select()
+					.from(worktrees)
+					.where(eq(worktrees.projectId, input.id))
+					.all();
+
+				type WarningEntry = {
+					branch: string;
+					hasChanges: boolean;
+					hasUnpushedCommits: boolean;
+				};
+
+				const checks: Promise<WarningEntry | null>[] = [];
+
+				// Check the main repo (branch workspace)
+				checks.push(
+					(async (): Promise<WarningEntry | null> => {
+						try {
+							const [changes, unpushed] = await Promise.all([
+								hasUncommittedChanges(project.mainRepoPath),
+								hasUnpushedCommits(project.mainRepoPath),
+							]);
+							if (!changes && !unpushed) return null;
+							const branch = await getCurrentBranch(project.mainRepoPath);
+							return {
+								branch: branch ?? "(main)",
+								hasChanges: changes,
+								hasUnpushedCommits: unpushed,
+							};
+						} catch {
+							return null;
+						}
+					})(),
+				);
+
+				// Check each worktree
+				for (const worktree of projectWorktrees) {
+					checks.push(
+						(async (): Promise<WarningEntry | null> => {
+							try {
+								const [changes, unpushed] = await Promise.all([
+									hasUncommittedChanges(worktree.path),
+									hasUnpushedCommits(worktree.path),
+								]);
+								if (!changes && !unpushed) return null;
+								return {
+									branch: worktree.branch,
+									hasChanges: changes,
+									hasUnpushedCommits: unpushed,
+								};
+							} catch {
+								return null;
+							}
+						})(),
+					);
+				}
+
+				const results = await Promise.all(checks);
+				const warnings = results.filter((r): r is WarningEntry => r !== null);
+				const worktreePaths = projectWorktrees.map((wt) => wt.path);
+
+				return { warnings, worktreePaths };
+			}),
+
+		close: publicProcedure
+			.input(
+				z.object({ id: z.string(), deleteFromDisk: z.boolean().default(false) }),
+			)
 			.mutation(async ({ input }) => {
 				const project = localDb
 					.select()
@@ -1672,6 +1753,9 @@ export const createProjectsRouter = (getWindow: () => BrowserWindow | null) => {
 				if (!project) {
 					throw new Error("Project not found");
 				}
+
+				// Collect worktree paths before deleting rows (needed for disk cleanup)
+				const worktreePathsToDelete: string[] = [];
 
 				// For feature projects, cascade cleanup to all child repos first
 				const registry = getWorkspaceRuntimeRegistry();
@@ -1699,6 +1783,14 @@ export const createProjectsRouter = (getWindow: () => BrowserWindow | null) => {
 								.delete(workspaces)
 								.where(inArray(workspaces.id, childWorkspaceIds))
 								.run();
+						}
+						if (input.deleteFromDisk && !project.isGitless) {
+							localDb
+								.select({ path: worktrees.path })
+								.from(worktrees)
+								.where(eq(worktrees.projectId, child.id))
+								.all()
+								.forEach((wt) => worktreePathsToDelete.push(wt.path));
 						}
 						localDb
 							.delete(worktrees)
@@ -1736,6 +1828,14 @@ export const createProjectsRouter = (getWindow: () => BrowserWindow | null) => {
 						.run();
 				}
 
+				if (input.deleteFromDisk && !project.isGitless) {
+					localDb
+						.select({ path: worktrees.path })
+						.from(worktrees)
+						.where(eq(worktrees.projectId, input.id))
+						.all()
+						.forEach((wt) => worktreePathsToDelete.push(wt.path));
+				}
 				localDb
 					.delete(worktrees)
 					.where(eq(worktrees.projectId, input.id))
@@ -1765,6 +1865,27 @@ export const createProjectsRouter = (getWindow: () => BrowserWindow | null) => {
 						: undefined;
 
 				track("project_closed", { project_id: input.id });
+
+				// Delete files from disk if requested (never for gitless projects)
+				if (input.deleteFromDisk && !project.isGitless) {
+					const mainRepoPrefix = project.mainRepoPath + sep;
+					// Delete external worktree dirs first (ones not nested inside mainRepoPath,
+					// since those will be removed when the main repo is deleted below)
+					const externalWorktreePaths = worktreePathsToDelete.filter(
+						(p) => !p.startsWith(mainRepoPrefix),
+					);
+					await Promise.all(
+						externalWorktreePaths.map((p) =>
+							rm(p, { recursive: true, force: true }).catch((err) => {
+								console.warn(
+									`[projects/close] Failed to delete worktree dir ${p}:`,
+									err,
+								);
+							}),
+						),
+					);
+					await rm(project.mainRepoPath, { recursive: true, force: true });
+				}
 
 				return { success: true, terminalWarning };
 			}),

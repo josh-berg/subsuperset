@@ -131,8 +131,8 @@ export function ProjectHeader({
 		setIsCloseDialogOpen(true);
 	};
 
-	const handleConfirmClose = () => {
-		closeProject.mutate({ id: projectId });
+	const handleConfirmClose = ({ deleteFromDisk }: { deleteFromDisk: boolean }) => {
+		closeProject.mutate({ id: projectId, deleteFromDisk });
 	};
 
 	const handleOpenInFinder = () => {
@@ -254,8 +254,11 @@ export function ProjectHeader({
 				</ContextMenu>
 
 				<CloseProjectDialog
+					projectId={projectId}
 					projectName={projectName}
 					workspaceCount={workspaceCount}
+					mainRepoPath={mainRepoPath}
+					isGitless={isGitless}
 					open={isCloseDialogOpen}
 					onOpenChange={setIsCloseDialogOpen}
 					onConfirm={handleConfirmClose}
@@ -398,8 +401,11 @@ export function ProjectHeader({
 			</ContextMenu>
 
 			<CloseProjectDialog
+				projectId={projectId}
 				projectName={projectName}
 				workspaceCount={workspaceCount}
+				mainRepoPath={mainRepoPath}
+				isGitless={isGitless}
 				open={isCloseDialogOpen}
 				onOpenChange={setIsCloseDialogOpen}
 				onConfirm={handleConfirmClose}
