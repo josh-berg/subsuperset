@@ -558,13 +558,14 @@ export const createCreateProcedures = () => {
 					throw new Error(`Project ${input.projectId} not found`);
 				}
 
-				const branch =
-					input.branch || (await getCurrentBranch(project.mainRepoPath));
-				if (!branch) {
+				const branch = project.isGitless
+					? ""
+					: (input.branch || (await getCurrentBranch(project.mainRepoPath)));
+				if (!project.isGitless && !branch) {
 					throw new Error("Could not determine current branch");
 				}
 
-				if (input.branch) {
+				if (input.branch && !project.isGitless) {
 					await safeCheckoutBranch(project.mainRepoPath, input.branch);
 				}
 

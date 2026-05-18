@@ -1,9 +1,9 @@
-import { useNavigate } from "@tanstack/react-router";
+import { useOpenMainRepoWorkspace } from "renderer/react-query/workspaces/useOpenMainRepoWorkspace";
 import { electronTrpc } from "renderer/lib/electron-trpc";
 
 export function useProjectCreationHandler(onError: (error: string) => void) {
 	const utils = electronTrpc.useUtils();
-	const navigate = useNavigate();
+	const openMainRepoWorkspace = useOpenMainRepoWorkspace();
 
 	const handleResult = (
 		result: {
@@ -18,11 +18,7 @@ export function useProjectCreationHandler(onError: (error: string) => void) {
 		if (result.success && result.project) {
 			utils.projects.getRecents.invalidate();
 			resetState?.();
-			navigate({
-				to: "/project/$projectId",
-				params: { projectId: result.project.id },
-				replace: true,
-			});
+			openMainRepoWorkspace.mutate({ projectId: result.project.id });
 		} else if (!result.success && result.error) {
 			onError(result.error);
 		}

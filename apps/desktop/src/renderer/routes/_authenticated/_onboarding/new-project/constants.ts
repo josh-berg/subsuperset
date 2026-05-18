@@ -1,1 +1,1 @@
-export type NewProjectMode = "empty" | "clone" | "multi-repo";
+export type NewProjectMode = "empty" | "clone" | "multi-repo" | "open-folder";

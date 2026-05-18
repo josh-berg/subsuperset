@@ -4,6 +4,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { HiArrowLeft } from "react-icons/hi2";
 import {
+	LuFolderOpen,
 	LuFolderPlus,
 	LuGitBranch,
 	LuNetwork,
@@ -14,6 +15,7 @@ import { electronTrpc } from "renderer/lib/electron-trpc";
 import { CloneRepoTab } from "./components/CloneRepoTab";
 import { EmptyRepoTab } from "./components/EmptyRepoTab";
 import { MultiRepoTab } from "./components/MultiRepoTab";
+import { OpenFolderTab } from "./components/OpenFolderTab";
 import type { NewProjectMode } from "./constants";
 
 export const Route = createFileRoute(
@@ -45,6 +47,12 @@ const OPTIONS: {
 		label: "New Repository",
 		description: "New git repository from scratch",
 		icon: LuFolderPlus,
+	},
+	{
+		mode: "open-folder",
+		label: "Open Folder",
+		description: "Open any folder without git",
+		icon: LuFolderOpen,
 	},
 ];
 
@@ -79,8 +87,8 @@ function NewProjectPage() {
 					<div className="w-full flex flex-col gap-5">
 						<h1 className="text-lg font-medium text-foreground">New Project</h1>
 
-						{/* Storage location row */}
-						{!isRootLoading && (
+						{/* Storage location row (hidden for open-folder which uses its own path) */}
+						{mode !== "open-folder" && !isRootLoading && (
 							projectsRootDir ? (
 								<div className="flex items-center gap-2 text-xs text-muted-foreground">
 									<span>Saving to</span>
@@ -111,7 +119,7 @@ function NewProjectPage() {
 							)
 						)}
 
-						<div className="grid grid-cols-3 gap-3">
+						<div className="grid grid-cols-2 gap-3">
 							{OPTIONS.map((option) => {
 								const selected = mode === option.mode;
 								return (
@@ -168,6 +176,9 @@ function NewProjectPage() {
 								parentDir={projectsDir ?? ""}
 								disabled={!projectsRootDir}
 							/>
+						)}
+						{mode === "open-folder" && (
+							<OpenFolderTab onError={setError} />
 						)}
 
 						{error && (
