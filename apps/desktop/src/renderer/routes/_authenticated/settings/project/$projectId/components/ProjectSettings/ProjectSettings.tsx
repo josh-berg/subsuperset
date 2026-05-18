@@ -310,7 +310,7 @@ export function ProjectSettings({
 				<SettingsSection
 					icon={<HiOutlineCog6Tooth className="h-4 w-4" />}
 					title="Branch Prefix"
-					description="Override the default prefix for new workspaces."
+					description="Override the default prefix for new worktrees."
 				>
 					<div className="flex items-center justify-between">
 						<div className="space-y-0.5">
@@ -362,14 +362,14 @@ export function ProjectSettings({
 
 				<SettingsSection
 					icon={<HiOutlineCog6Tooth className="h-4 w-4" />}
-					title="Workspace Base Branch"
-					description="Set the default base branch for new workspaces in this repository."
+					title="Worktree Base Branch"
+					description="Set the default base branch for new worktrees in this repository."
 				>
 					<div className="flex items-center justify-between gap-4">
 						<div className="space-y-0.5">
 							<Label className="text-sm font-medium">Default Base Branch</Label>
 							<p className="text-xs text-muted-foreground">
-								Used when creating a workspace unless you choose a one-off base
+								Used when creating a worktree unless you choose a one-off base
 								branch.
 							</p>
 						</div>
@@ -405,7 +405,7 @@ export function ProjectSettings({
 					{workspaceBaseBranchMissing && (
 						<p className="text-xs text-destructive">
 							Branch "{project.workspaceBaseBranch}" no longer exists. New
-							workspaces will fall back to "{repoDefaultBranch}".
+							worktrees will fall back to "{repoDefaultBranch}".
 						</p>
 					)}
 				</SettingsSection>

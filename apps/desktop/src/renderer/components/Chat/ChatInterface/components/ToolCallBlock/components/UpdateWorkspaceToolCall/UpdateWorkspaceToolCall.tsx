@@ -12,7 +12,7 @@ export function UpdateWorkspaceToolCall({
 	return (
 		<SupersetToolCall
 			part={part}
-			toolName="Update workspace"
+			toolName="Update worktree"
 			icon={PencilLineIcon}
 		/>
 	);

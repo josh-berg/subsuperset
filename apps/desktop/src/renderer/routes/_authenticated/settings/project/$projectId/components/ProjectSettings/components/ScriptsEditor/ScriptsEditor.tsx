@@ -386,7 +386,7 @@ export function ScriptsEditor({ projectId, className }: ScriptsEditorProps) {
 
 			<ScriptTextarea
 				title="Setup"
-				description="Runs when a new workspace is created."
+				description="Runs when a new worktree is created."
 				placeholder="e.g. bun install && bun run dev"
 				value={setupContent}
 				onChange={handleSetupChange}
@@ -395,7 +395,7 @@ export function ScriptsEditor({ projectId, className }: ScriptsEditorProps) {
 
 			<ScriptTextarea
 				title="Teardown"
-				description="Runs when a workspace is deleted."
+				description="Runs when a worktree is deleted."
 				placeholder="e.g. docker compose down"
 				value={teardownContent}
 				onChange={handleTeardownChange}

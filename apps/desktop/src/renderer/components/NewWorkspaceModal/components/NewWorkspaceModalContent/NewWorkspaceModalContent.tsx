@@ -236,9 +236,9 @@ export function NewWorkspaceModalContent({
 		});
 		toast.promise(promise, {
 			loading: `Creating branch "${sanitized}"...`,
-			success: "Workspace created",
+			success: "Worktree created",
 			error: (err) =>
-				err instanceof Error ? err.message : "Failed to create workspace",
+				err instanceof Error ? err.message : "Failed to create worktree",
 		});
 		promise
 			.then(() => closeAndResetDraft())
@@ -270,10 +270,10 @@ export function NewWorkspaceModalContent({
 				applyPrefix: false,
 			});
 			toast.promise(promise, {
-				loading: "Creating workspace...",
-				success: "Workspace created",
+				loading: "Creating worktree...",
+				success: "Worktree created",
 				error: (err) =>
-					err instanceof Error ? err.message : "Failed to create workspace",
+					err instanceof Error ? err.message : "Failed to create worktree",
 			});
 			promise
 				.then(() => closeAndResetDraft())
@@ -483,7 +483,7 @@ export function NewWorkspaceModalContent({
 					/>
 				)}
 				<span className="text-sm font-medium truncate">
-					{selectedProject?.name ?? "New Workspace"}
+					{selectedProject?.name ?? "New Worktree"}
 				</span>
 			</div>
 

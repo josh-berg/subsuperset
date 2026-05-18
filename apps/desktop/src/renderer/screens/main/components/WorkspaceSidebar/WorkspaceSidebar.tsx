@@ -167,7 +167,7 @@ export function WorkspaceSidebar({
 
 				{groups.length === 0 && !isCollapsed && (
 					<div className="flex flex-col items-center justify-center h-32 text-muted-foreground text-sm">
-						<span>No workspaces yet</span>
+						<span>No worktrees yet</span>
 						<span className="text-xs mt-1">
 							Add project or drag a Git repo folder here
 						</span>

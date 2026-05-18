@@ -239,12 +239,12 @@ function ProjectPage() {
 				compareBaseBranch: compareBaseBranch || undefined,
 			});
 
-			toast.success("Workspace created", {
+			toast.success("Worktree created", {
 				description: "Setting up in the background...",
 			});
 		} catch (error) {
 			toast.error(
-				error instanceof Error ? error.message : "Failed to create workspace",
+				error instanceof Error ? error.message : "Failed to create worktree",
 			);
 		}
 	};
@@ -317,15 +317,15 @@ function ProjectPage() {
 								Step {step === "workspace" ? 1 : 2} of 2
 							</p>
 							<h1 className="text-2xl font-semibold text-foreground">
-								{step === "workspace" && "Create your first workspace"}
+								{step === "workspace" && "Create your first worktree"}
 								{step === "setup" && "Setup script"}
 							</h1>
 							<p className="text-sm text-muted-foreground">
 								{step === "workspace" &&
-									"Workspaces are isolated task environments backed by git worktrees."}
+									"Worktrees are isolated task environments backed by git worktrees."}
 								{step === "setup" && (
 									<>
-										These commands run automatically when a workspace is
+										These commands run automatically when a worktree is
 										created.{" "}
 										<a
 											href="https://docs.superset.sh/setup-teardown-scripts"
@@ -680,8 +680,8 @@ function ProjectPage() {
 												createWorkspace.isPending
 													? "Creating..."
 													: setupMode === "checklist"
-														? "Create workspace"
-														: "Save & create workspace"}
+														? "Create worktree"
+														: "Save & create worktree"}
 												<HiChevronRight className="size-4" />
 											</Button>
 										</div>

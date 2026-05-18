@@ -10,7 +10,7 @@ export function ListWorkspacesToolCall({ part }: ListWorkspacesToolCallProps) {
 	return (
 		<SupersetToolCall
 			part={part}
-			toolName="List workspaces"
+			toolName="List worktrees"
 			icon={FolderTreeIcon}
 		/>
 	);

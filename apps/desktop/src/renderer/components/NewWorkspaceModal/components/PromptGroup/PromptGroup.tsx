@@ -727,7 +727,7 @@ function PromptGroupInner({
 		const displayName =
 			workspaceNameEdited && workspaceName.trim()
 				? workspaceName.trim()
-				: trimmedPrompt || "New workspace";
+				: trimmedPrompt || "New worktree";
 		const willGenerateAIName =
 			!branchNameEdited && !!trimmedPrompt && !linkedPR;
 		const pendingWorkspaceId = crypto.randomUUID();
@@ -951,12 +951,12 @@ ${sanitizeText(truncatedBody)}`;
 						launchRequest ?? undefined,
 					),
 					{
-						loading: `Creating workspace from PR #${linkedPR.prNumber}...`,
-						success: "Workspace created from PR",
+						loading: `Creating worktree from PR #${linkedPR.prNumber}...`,
+						success: "Worktree created from PR",
 						error: (err) =>
 							err instanceof Error
 								? err.message
-								: "Failed to create workspace from PR",
+								: "Failed to create worktree from PR",
 					},
 					{ closeAndReset: false },
 				).finally(() => {
@@ -994,10 +994,10 @@ ${sanitizeText(truncatedBody)}`;
 					},
 				),
 				{
-					loading: "Creating workspace...",
-					success: "Workspace created",
+					loading: "Creating worktree...",
+					success: "Worktree created",
 					error: (err) =>
-						err instanceof Error ? err.message : "Failed to create workspace",
+						err instanceof Error ? err.message : "Failed to create worktree",
 				},
 				{ closeAndReset: false },
 			).finally(() => {
@@ -1160,7 +1160,7 @@ ${sanitizeText(truncatedBody)}`;
 			<div className="flex items-center">
 				<Input
 					className="border-none bg-transparent dark:bg-transparent shadow-none text-base font-medium px-0 h-auto focus-visible:ring-0 placeholder:text-muted-foreground/40 min-w-0 flex-1"
-					placeholder="Workspace name (optional)"
+					placeholder="Worktree name (optional)"
 					value={workspaceName}
 					onChange={(e) =>
 						updateDraft({

@@ -74,7 +74,7 @@ export function SwitchBranchDialog({
 				msg.includes("is already used by worktree")
 			) {
 				setError(
-					"This branch is checked out in another workspace and cannot be switched to.",
+					"This branch is checked out in another worktree and cannot be switched to.",
 				);
 			} else {
 				setError(msg);

@@ -149,7 +149,7 @@ export function WorkspaceInitEffects() {
 				const { tabId: setupTabId, paneId: setupPaneId } = addTab(
 					setup.workspaceId,
 				);
-				setTabAutoTitle(setupTabId, "Workspace Setup");
+				setTabAutoTitle(setupTabId, "Worktree Setup");
 				openPresetsInActiveTab(setup.workspaceId, presets);
 
 				if (agentLaunchRequest || agentCommand) {
@@ -205,7 +205,7 @@ export function WorkspaceInitEffects() {
 
 			if (hasSetupScript) {
 				const { tabId, paneId } = addTab(setup.workspaceId);
-				setTabAutoTitle(tabId, "Workspace Setup");
+				setTabAutoTitle(tabId, "Worktree Setup");
 
 				if (agentLaunchRequest || agentCommand) {
 					launchAgentViaOrchestrator(setup, paneId);

@@ -383,10 +383,10 @@ export function PresetEditorSheet({
 													htmlFor="preset-workspace-autostart"
 													className="text-sm font-medium"
 												>
-													When creating a workspace
+													When creating a worktree
 												</Label>
 												<p className="text-xs text-muted-foreground">
-													Automatically launch this preset for new workspaces.
+													Automatically launch this preset for new worktrees.
 												</p>
 											</div>
 										</div>

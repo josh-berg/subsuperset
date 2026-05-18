@@ -12,7 +12,7 @@ export function SwitchWorkspaceToolCall({
 	return (
 		<SupersetToolCall
 			part={part}
-			toolName="Switch workspace"
+			toolName="Switch worktree"
 			icon={ArrowRightLeftIcon}
 		/>
 	);

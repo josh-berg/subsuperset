@@ -12,7 +12,7 @@ export function GetWorkspaceDetailsToolCall({
 	return (
 		<SupersetToolCall
 			part={part}
-			toolName="Get workspace details"
+			toolName="Get worktree details"
 			icon={InfoIcon}
 		/>
 	);

@@ -12,7 +12,7 @@ export function CreateWorkspaceToolCall({
 	return (
 		<SupersetToolCall
 			part={part}
-			toolName="Create workspace"
+			toolName="Create worktree"
 			icon={FolderPlusIcon}
 		/>
 	);

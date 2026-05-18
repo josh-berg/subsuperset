@@ -87,10 +87,10 @@ export const WorkspaceRunButton = memo(function WorkspaceRunButton({
 
 	const buttonLabel = isRunning ? "Stop" : hasRunCommand ? "Run" : "Set Run";
 	const buttonAriaLabel = isRunning
-		? "Stop workspace run command"
+		? "Stop worktree run command"
 		: hasRunCommand
-			? "Run workspace command"
-			: "Configure workspace run command";
+			? "Run worktree command"
+			: "Configure worktree run command";
 
 	return (
 		<div className="flex items-center no-drag">

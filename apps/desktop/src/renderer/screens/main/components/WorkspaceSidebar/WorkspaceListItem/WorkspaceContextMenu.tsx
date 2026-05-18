@@ -198,15 +198,19 @@ export function WorkspaceContextMenu({
 					Clear Status
 				</ContextMenuItem>
 			)}
-			<ContextMenuSeparator />
-			<ContextMenuItem
-				onSelect={() => {
-					deleteDialogCoordinator.requestOpenDeleteDialog();
-				}}
-			>
-				<LuX className="size-4 mr-2" strokeWidth={STROKE_WIDTH} />
-				{isBranchWorkspace ? "Close Workspace" : "Close Worktree"}
-			</ContextMenuItem>
+			{!isBranchWorkspace && (
+				<>
+					<ContextMenuSeparator />
+					<ContextMenuItem
+						onSelect={() => {
+							deleteDialogCoordinator.requestOpenDeleteDialog();
+						}}
+					>
+						<LuX className="size-4 mr-2" strokeWidth={STROKE_WIDTH} />
+						Close Worktree
+					</ContextMenuItem>
+				</>
+			)}
 		</>
 	);
 
