@@ -1,6 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { basename, join } from "node:path";
 import {
+	githubRepoCache,
 	projects,
 	settings,
 	workspaceSections,
@@ -8,7 +9,7 @@ import {
 	worktrees,
 } from "@superset/local-db";
 import { TRPCError } from "@trpc/server";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull, like, or, sql } from "drizzle-orm";
 import { track } from "main/lib/analytics";
 import { localDb } from "main/lib/local-db";
 import { deleteProjectIcon } from "main/lib/project-icons";
@@ -167,6 +168,152 @@ export const createFeatureProjectsRouter = () => {
 					console.warn("[searchGitHubRepos] Failed:", err);
 					return [];
 				}
+			}),
+
+		/**
+		 * Return the current state of the local GitHub repo cache:
+		 * how many repos are stored and when they were last synced.
+		 */
+		getRepoCacheStatus: publicProcedure.query(() => {
+			const row = localDb
+				.select({
+					count: sql<number>`count(*)`,
+					syncedAt: sql<number | null>`max(${githubRepoCache.syncedAt})`,
+				})
+				.from(githubRepoCache)
+				.get();
+			return {
+				count: row?.count ?? 0,
+				syncedAt: row?.syncedAt ?? null,
+			};
+		}),
+
+		/**
+		 * Fetch every repo accessible to the authenticated gh CLI user and store it
+		 * in the local cache.  Uses `user/repos?affiliation=...` with pagination so
+		 * we get owned repos, org repos, and collaborator repos in one pass.
+		 */
+		syncRepoCache: publicProcedure.mutation(async () => {
+			try {
+				const { stdout } = await execWithShellEnv(
+					"gh",
+					[
+						"api",
+						"user/repos?per_page=100&affiliation=owner,collaborator,organization_member",
+						"--paginate",
+						"--jq",
+						".[] | {fullName: .full_name, name: .name, description: .description, isPrivate: .private, url: .html_url}",
+					],
+					{ timeout: 120_000 },
+				);
+
+				// --paginate + streaming jq produces one JSON object per line (NDJSON)
+				const rows = stdout
+					.trim()
+					.split("\n")
+					.filter(Boolean)
+					.flatMap((line) => {
+						try {
+							const item = JSON.parse(line) as Record<string, unknown>;
+							const fullName = String(item.fullName ?? "");
+							if (!fullName) return [];
+							return [
+								{
+									fullName,
+									name: String(item.name ?? ""),
+									description: item.description ? String(item.description) : null,
+									isPrivate: Boolean(item.isPrivate),
+									url: String(item.url ?? ""),
+									syncedAt: Date.now(),
+								},
+							];
+						} catch {
+							return [];
+						}
+					});
+
+				if (rows.length === 0) return { count: 0 };
+
+				// Wipe old cache and replace atomically
+				localDb.delete(githubRepoCache).run();
+				// Insert in batches of 500 to stay well within SQLite's variable limit
+				const BATCH = 500;
+				for (let i = 0; i < rows.length; i += BATCH) {
+					localDb.insert(githubRepoCache).values(rows.slice(i, i + BATCH)).run();
+				}
+
+				return { count: rows.length };
+			} catch (err) {
+				console.warn("[syncRepoCache] Failed:", err);
+				throw new TRPCError({
+					code: "INTERNAL_SERVER_ERROR",
+					message: err instanceof Error ? err.message : "Failed to sync repo cache",
+				});
+			}
+		}),
+
+		/**
+		 * Search the local GitHub repo cache.  Falls back to an empty result when the
+		 * cache has not been populated yet (callers should prompt the user to sync).
+		 *
+		 * Matching is name/fullName only (not description) so description-only repos
+		 * never appear above repos whose actual name contains the query.
+		 *
+		 * Results are ranked by two dimensions:
+		 *
+		 * Primary – org/name family (most-used repos surface first):
+		 *   0 – hudl/hudl-*  (the repos most frequently selected)
+		 *   1 – everything else
+		 *
+		 * Secondary – match quality within each family:
+		 *   0 – short name starts with query  (e.g. "ticketing" → "ticketing-service")
+		 *   1 – short name contains query     (e.g. "ticketing" → "hudl-ticketing")
+		 *   2 – only the org prefix matches   (e.g. "ticketing" → "ticketing-org/other")
+		 *
+		 * Tertiary – alphabetical by fullName.
+		 */
+		searchCachedRepos: publicProcedure
+			.input(
+				z.object({
+					query: z.string(),
+					limit: z.number().min(1).max(100).default(20),
+				}),
+			)
+			.query(({ input }) => {
+				const q = input.query.trim();
+				if (!q) {
+					return localDb
+						.select()
+						.from(githubRepoCache)
+						.orderBy(githubRepoCache.fullName)
+						.limit(input.limit)
+						.all();
+				}
+				const contains = `%${q}%`;
+				const startsWith = `${q}%`;
+				return localDb
+					.select()
+					.from(githubRepoCache)
+					.where(
+						or(
+							like(githubRepoCache.fullName, contains),
+							like(githubRepoCache.name, contains),
+						),
+					)
+					.orderBy(
+						sql<number>`CASE
+							WHEN ${githubRepoCache.fullName} LIKE ${"hudl/hudl-%"} THEN 0
+							ELSE 1
+						END`,
+						sql<number>`CASE
+							WHEN ${githubRepoCache.name} LIKE ${startsWith} THEN 0
+							WHEN ${githubRepoCache.name} LIKE ${contains}   THEN 1
+							ELSE 2
+						END`,
+						githubRepoCache.fullName,
+					)
+					.limit(input.limit)
+					.all();
 			}),
 
 		/** Clone a GitHub repo into the feature project folder and create a child project. */

@@ -370,6 +370,30 @@ export type InsertTask = typeof tasks.$inferInsert;
 export type SelectTask = typeof tasks.$inferSelect;
 
 /**
+ * GitHub repo cache - local mirror of all repos accessible to the authenticated gh CLI user.
+ * Populated by featureProjects.syncRepoCache; searched locally to avoid per-keystroke API calls.
+ */
+export const githubRepoCache = sqliteTable(
+	"github_repo_cache",
+	{
+		fullName: text("full_name").primaryKey(),
+		name: text("name").notNull(),
+		description: text("description"),
+		isPrivate: integer("is_private", { mode: "boolean" }).notNull().default(false),
+		url: text("url").notNull(),
+		/** Unix ms timestamp of the sync run that wrote this row. */
+		syncedAt: integer("synced_at").notNull(),
+	},
+	(table) => [
+		index("github_repo_cache_name_idx").on(table.name),
+		index("github_repo_cache_synced_at_idx").on(table.syncedAt),
+	],
+);
+
+export type InsertGithubRepoCache = typeof githubRepoCache.$inferInsert;
+export type SelectGithubRepoCache = typeof githubRepoCache.$inferSelect;
+
+/**
  * Browser history table - persists browsing history for URL autocomplete
  */
 export const browserHistory = sqliteTable(

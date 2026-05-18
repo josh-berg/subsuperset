@@ -7,6 +7,7 @@ import {
 	LuGitBranch,
 	LuLoader,
 	LuPlus,
+	LuRefreshCw,
 	LuSearch,
 	LuX,
 } from "react-icons/lu";
@@ -35,25 +36,41 @@ export function MultiRepoTab({ onError, parentDir }: MultiRepoTabProps) {
 	const [projectName, setProjectName] = useState("");
 	const [branchName, setBranchName] = useState("");
 	const [repoSearch, setRepoSearch] = useState("");
-	const [debouncedSearch, setDebouncedSearch] = useState("");
 	const [selectedRepos, setSelectedRepos] = useState<RepoSelection[]>([]);
 	const [addingRepoIndex, setAddingRepoIndex] = useState<number | null>(null);
 	const [creationDone, setCreationDone] = useState(false);
-
-	useEffect(() => {
-		const timer = setTimeout(() => setDebouncedSearch(repoSearch), 1000);
-		return () => clearTimeout(timer);
-	}, [repoSearch]);
 
 	const createFeatureProject =
 		electronTrpc.featureProjects.create.useMutation();
 	const addRepo = electronTrpc.featureProjects.addRepo.useMutation();
 
-	const { data: searchResults = [], isFetching: isSearching } =
-		electronTrpc.featureProjects.searchGitHubRepos.useQuery(
-			{ query: debouncedSearch.trim(), limit: 20 },
-			{ enabled: debouncedSearch.trim().length >= 2 },
+	const { data: cacheStatus } =
+		electronTrpc.featureProjects.getRepoCacheStatus.useQuery(undefined, {
+			enabled: step === "select-repos",
+		});
+
+	const { data: searchResults = [] } =
+		electronTrpc.featureProjects.searchCachedRepos.useQuery(
+			{ query: repoSearch.trim(), limit: 20 },
+			{ enabled: step === "select-repos" && (cacheStatus?.count ?? 0) > 0 },
 		);
+
+	const syncCache = electronTrpc.featureProjects.syncRepoCache.useMutation({
+		onSuccess: async () => {
+			await utils.featureProjects.getRepoCacheStatus.invalidate();
+			await utils.featureProjects.searchCachedRepos.invalidate();
+		},
+		onError: (err) => onError(err.message),
+	});
+
+	// Auto-sync when the select-repos step is first shown and cache is empty
+	useEffect(() => {
+		if (step === "select-repos" && cacheStatus?.count === 0) {
+			syncCache.mutate();
+		}
+	}, [step, cacheStatus?.count === 0]); // eslint-disable-line react-hooks/exhaustive-deps
+
+	const isSyncing = syncCache.isPending;
 
 	const isRepoSelected = (fullName: string) =>
 		selectedRepos.some((r) => r.fullName === fullName);
@@ -190,67 +207,111 @@ export function MultiRepoTab({ onError, parentDir }: MultiRepoTabProps) {
 	}
 
 	if (step === "select-repos") {
+		const lastSyncedLabel = (() => {
+			if (!cacheStatus?.syncedAt) return null;
+			const diffMs = Date.now() - cacheStatus.syncedAt;
+			const diffMin = Math.floor(diffMs / 60_000);
+			if (diffMin < 1) return "just now";
+			if (diffMin < 60) return `${diffMin}m ago`;
+			const diffHr = Math.floor(diffMin / 60);
+			if (diffHr < 24) return `${diffHr}h ago`;
+			return `${Math.floor(diffHr / 24)}d ago`;
+		})();
+
 		return (
 			<div className="flex flex-col gap-5">
 				<div className="flex flex-col gap-1.5">
-					<label
-						htmlFor="repo-search"
-						className="text-sm font-medium text-foreground"
-					>
-						Search GitHub repositories
-					</label>
+					<div className="flex items-center justify-between">
+						<label
+							htmlFor="repo-search"
+							className="text-sm font-medium text-foreground"
+						>
+							Search GitHub repositories
+						</label>
+						<div className="flex items-center gap-1.5">
+							{lastSyncedLabel && (
+								<span className="text-xs text-muted-foreground">
+									{cacheStatus?.count} repos · synced {lastSyncedLabel}
+								</span>
+							)}
+							<button
+								type="button"
+								onClick={() => syncCache.mutate()}
+								disabled={isSyncing}
+								className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
+								title="Refresh repo list"
+							>
+								<LuRefreshCw
+									className={`size-3 ${isSyncing ? "animate-spin" : ""}`}
+								/>
+								{isSyncing ? "Syncing…" : "Refresh"}
+							</button>
+						</div>
+					</div>
 					<div className="relative">
 						<LuSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
 						<Input
 							id="repo-search"
 							value={repoSearch}
 							onChange={(e) => setRepoSearch(e.target.value)}
-							placeholder="Search repos..."
+							placeholder={
+								isSyncing
+									? "Syncing repo list…"
+									: cacheStatus?.count === 0
+										? "Fetching repos…"
+										: "Search repos…"
+							}
 							className="pl-8"
+							disabled={isSyncing}
 							autoFocus
 						/>
 					</div>
-					{isSearching && (
-						<p className="text-xs text-muted-foreground">Searching...</p>
-					)}
 				</div>
 
-				{searchResults.length > 0 && (
-					<div className="flex flex-col gap-1 max-h-48 overflow-y-auto border border-border rounded-md p-1">
-						{searchResults.map((repo) => {
-							const selected = isRepoSelected(repo.fullName);
-							return (
-								<button
-									key={repo.fullName}
-									type="button"
-									onClick={() => toggleRepo(repo)}
-									className="flex items-center gap-3 w-full px-3 py-2 rounded text-left hover:bg-accent/50 transition-colors"
-								>
-									<div
-										className={`size-4 rounded border flex items-center justify-center shrink-0 ${selected ? "bg-primary border-primary" : "border-muted-foreground/40"}`}
-									>
-										{selected && (
-											<LuCheck className="size-3 text-primary-foreground" />
-										)}
-									</div>
-									<div className="flex-1 min-w-0">
-										<div className="text-sm font-medium truncate">
-											{repo.fullName}
-										</div>
-										{repo.description && (
-											<div className="text-xs text-muted-foreground truncate">
-												{repo.description}
+				{(cacheStatus?.count ?? 0) > 0 && !isSyncing && (
+					<div className="h-48 overflow-y-auto border border-border rounded-md p-1">
+						{searchResults.length === 0 ? (
+							<div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+								{repoSearch.trim() ? "No repos found" : "Type to search repos"}
+							</div>
+						) : (
+							<div className="flex flex-col gap-1">
+								{searchResults.map((repo) => {
+									const selected = isRepoSelected(repo.fullName);
+									return (
+										<button
+											key={repo.fullName}
+											type="button"
+											onClick={() => toggleRepo(repo)}
+											className="flex items-center gap-3 w-full px-3 py-2 rounded text-left hover:bg-accent/50 transition-colors"
+										>
+											<div
+												className={`size-4 rounded border flex items-center justify-center shrink-0 ${selected ? "bg-primary border-primary" : "border-muted-foreground/40"}`}
+											>
+												{selected && (
+													<LuCheck className="size-3 text-primary-foreground" />
+												)}
 											</div>
-										)}
-									</div>
-									{repo.isPrivate && (
-										<span className="text-[10px] text-muted-foreground/60 border border-border/60 rounded px-1 shrink-0">
-											private
-										</span>
-									)}
-								</button>
-							);
-						})}
+											<div className="flex-1 min-w-0">
+												<div className="text-sm font-medium truncate">
+													{repo.fullName}
+												</div>
+												{repo.description && (
+													<div className="text-xs text-muted-foreground truncate">
+														{repo.description}
+													</div>
+												)}
+											</div>
+											{repo.isPrivate && (
+												<span className="text-[10px] text-muted-foreground/60 border border-border/60 rounded px-1 shrink-0">
+													private
+												</span>
+											)}
+										</button>
+									);
+								})}
+							</div>
+						)}
 					</div>
 				)}
 
