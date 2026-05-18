@@ -259,6 +259,7 @@ export function ProjectHeader({
 					workspaceCount={workspaceCount}
 					mainRepoPath={mainRepoPath}
 					isGitless={isGitless}
+					isFeatureProject={isFeatureProject}
 					open={isCloseDialogOpen}
 					onOpenChange={setIsCloseDialogOpen}
 					onConfirm={handleConfirmClose}
@@ -406,6 +407,7 @@ export function ProjectHeader({
 				workspaceCount={workspaceCount}
 				mainRepoPath={mainRepoPath}
 				isGitless={isGitless}
+				isFeatureProject={isFeatureProject}
 				open={isCloseDialogOpen}
 				onOpenChange={setIsCloseDialogOpen}
 				onConfirm={handleConfirmClose}

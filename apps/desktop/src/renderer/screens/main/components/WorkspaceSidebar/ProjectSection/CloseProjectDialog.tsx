@@ -20,6 +20,7 @@ interface CloseProjectDialogProps {
 	workspaceCount: number;
 	mainRepoPath: string;
 	isGitless: boolean;
+	isFeatureProject?: boolean;
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	onConfirm: (options: { deleteFromDisk: boolean }) => void;
@@ -31,6 +32,7 @@ export function CloseProjectDialog({
 	workspaceCount,
 	mainRepoPath,
 	isGitless,
+	isFeatureProject = false,
 	open,
 	onOpenChange,
 	onConfirm,
@@ -131,7 +133,7 @@ export function CloseProjectDialog({
 					</>
 				)}
 
-				{/* Delete from disk checkbox */}
+				{/* Delete from disk checkbox — regular git project */}
 				{!isGitless && (
 					<div className="px-4 pb-2 space-y-2">
 						<div className="flex items-center gap-2">
@@ -162,6 +164,34 @@ export function CloseProjectDialog({
 										{p}
 									</li>
 								))}
+							</ul>
+						)}
+					</div>
+				)}
+
+				{/* Delete from disk checkbox — multi-repo feature project */}
+				{isFeatureProject && (
+					<div className="px-4 pb-2 space-y-2">
+						<div className="flex items-center gap-2">
+							<Checkbox
+								id="delete-from-disk"
+								checked={deleteFromDisk}
+								onCheckedChange={(checked) =>
+									setDeleteFromDisk(checked === true)
+								}
+							/>
+							<Label
+								htmlFor="delete-from-disk"
+								className="text-xs text-muted-foreground cursor-pointer select-none"
+							>
+								Also delete project folder from disk
+							</Label>
+						</div>
+						{deleteFromDisk && (
+							<ul className="space-y-0.5 pl-6">
+								<li className="text-xs text-destructive font-mono break-all leading-relaxed">
+									{mainRepoPath}
+								</li>
 							</ul>
 						)}
 					</div>

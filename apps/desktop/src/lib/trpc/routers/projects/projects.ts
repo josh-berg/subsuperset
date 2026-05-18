@@ -1866,8 +1866,12 @@ export const createProjectsRouter = (getWindow: () => BrowserWindow | null) => {
 
 				track("project_closed", { project_id: input.id });
 
-				// Delete files from disk if requested (never for gitless projects)
-				if (input.deleteFromDisk && !project.isGitless) {
+				// Delete files from disk if requested
+				if (input.deleteFromDisk && project.isFeatureProject) {
+					// For multi-repo feature projects, delete the entire project folder
+					// (which contains all cloned repos as subdirectories)
+					await rm(project.mainRepoPath, { recursive: true, force: true });
+				} else if (input.deleteFromDisk && !project.isGitless) {
 					const mainRepoPrefix = project.mainRepoPath + sep;
 					// Delete external worktree dirs first (ones not nested inside mainRepoPath,
 					// since those will be removed when the main repo is deleted below)

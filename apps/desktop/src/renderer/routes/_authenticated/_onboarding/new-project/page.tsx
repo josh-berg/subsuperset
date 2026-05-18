@@ -59,6 +59,7 @@ const OPTIONS: {
 function NewProjectPage() {
 	const [mode, setMode] = useState<NewProjectMode>("clone");
 	const [error, setError] = useState<string | null>(null);
+	const [isCreating, setIsCreating] = useState(false);
 
 	const { data: projectsRootDir, isLoading: isRootLoading } =
 		electronTrpc.settings.getProjectsRootDir.useQuery();
@@ -87,8 +88,8 @@ function NewProjectPage() {
 					<div className="w-full flex flex-col gap-5">
 						<h1 className="text-lg font-medium text-foreground">New Project</h1>
 
-						{/* Storage location row (hidden for open-folder which uses its own path) */}
-						{mode !== "open-folder" && !isRootLoading && (
+						{/* Storage location row (hidden for open-folder which uses its own path, or while creating) */}
+						{mode !== "open-folder" && !isRootLoading && !isCreating && (
 							projectsRootDir ? (
 								<div className="flex items-center gap-2 text-xs text-muted-foreground">
 									<span>Saving to</span>
@@ -119,7 +120,7 @@ function NewProjectPage() {
 							)
 						)}
 
-						<div className="grid grid-cols-2 gap-3">
+						{!isCreating && <div className="grid grid-cols-2 gap-3">
 							{OPTIONS.map((option) => {
 								const selected = mode === option.mode;
 								return (
@@ -154,7 +155,7 @@ function NewProjectPage() {
 									</button>
 								);
 							})}
-						</div>
+						</div>}
 
 						{mode === "empty" && (
 							<EmptyRepoTab
@@ -173,6 +174,7 @@ function NewProjectPage() {
 						{mode === "multi-repo" && (
 							<MultiRepoTab
 								onError={setError}
+								onCreatingChange={setIsCreating}
 								parentDir={projectsDir ?? ""}
 								disabled={!projectsRootDir}
 							/>

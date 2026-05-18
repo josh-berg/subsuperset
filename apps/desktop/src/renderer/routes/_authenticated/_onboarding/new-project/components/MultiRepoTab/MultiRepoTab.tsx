@@ -23,13 +23,14 @@ interface RepoSelection {
 
 interface MultiRepoTabProps {
 	onError: (error: string) => void;
+	onCreatingChange?: (isCreating: boolean) => void;
 	parentDir: string;
 	disabled?: boolean;
 }
 
 type Step = "configure" | "select-repos" | "creating";
 
-export function MultiRepoTab({ onError, parentDir, disabled }: MultiRepoTabProps) {
+export function MultiRepoTab({ onError, onCreatingChange, parentDir, disabled }: MultiRepoTabProps) {
 	const navigate = useNavigate();
 	const utils = electronTrpc.useUtils();
 
@@ -118,6 +119,7 @@ export function MultiRepoTab({ onError, parentDir, disabled }: MultiRepoTabProps
 		}
 
 		setStep("creating");
+		onCreatingChange?.(true);
 
 		try {
 			const { project } = await createFeatureProject.mutateAsync({
@@ -152,6 +154,7 @@ export function MultiRepoTab({ onError, parentDir, disabled }: MultiRepoTabProps
 		} catch (err) {
 			setStep("select-repos");
 			setAddingRepoIndex(null);
+			onCreatingChange?.(false);
 			onError(err instanceof Error ? err.message : "Failed to create project");
 		}
 	};
