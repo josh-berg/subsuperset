@@ -95,8 +95,8 @@ export const createFeatureProjectsRouter = () => {
 					.get();
 
 				if (existing) {
-					ensureGitlessWorkspace(existing);
-					return { project: existing };
+					const workspaceId = ensureGitlessWorkspace(existing);
+					return { project: existing, workspaceId };
 				}
 
 				const project = localDb
@@ -111,11 +111,11 @@ export const createFeatureProjectsRouter = () => {
 					.returning()
 					.get();
 
-				ensureGitlessWorkspace(project);
+				const workspaceId = ensureGitlessWorkspace(project);
 
 				track("feature_project_created", { project_id: project.id });
 
-				return { project };
+				return { project, workspaceId };
 			}),
 
 		/** Search GitHub repos accessible to the authenticated gh CLI user. */

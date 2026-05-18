@@ -53,6 +53,11 @@ export function SwitchBranchDialog({
 							w.worktreePath === worktreePath ? { ...w, branch: newBranch } : w,
 						),
 					})),
+					childProjects: group.childProjects.map((cp) =>
+						cp.mainRepoPath === worktreePath
+							? { ...cp, workspaceBranch: newBranch }
+							: cp,
+					),
 				}));
 			});
 			return { previous };

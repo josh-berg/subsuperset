@@ -12,6 +12,7 @@ import {
 	LuX,
 } from "react-icons/lu";
 import { electronTrpc } from "renderer/lib/electron-trpc";
+import { navigateToWorkspace } from "renderer/routes/_authenticated/_dashboard/utils/workspace-navigation";
 
 interface RepoSelection {
 	fullName: string;
@@ -122,7 +123,7 @@ export function MultiRepoTab({ onError, onCreatingChange, parentDir, disabled }:
 		onCreatingChange?.(true);
 
 		try {
-			const { project } = await createFeatureProject.mutateAsync({
+			const { project, workspaceId } = await createFeatureProject.mutateAsync({
 				name: projectName.trim(),
 				parentDir: parentDir.trim(),
 			});
@@ -145,11 +146,15 @@ export function MultiRepoTab({ onError, onCreatingChange, parentDir, disabled }:
 			await utils.projects.getRecents.invalidate();
 
 			setTimeout(() => {
-				navigate({
-					to: "/project/$projectId",
-					params: { projectId: project.id },
-					replace: true,
-				});
+				if (workspaceId) {
+					navigateToWorkspace(workspaceId, navigate, { replace: true });
+				} else {
+					navigate({
+						to: "/project/$projectId",
+						params: { projectId: project.id },
+						replace: true,
+					});
+				}
 			}, 800);
 		} catch (err) {
 			setStep("select-repos");

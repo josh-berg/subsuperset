@@ -7,13 +7,13 @@ import {
 	touchWorkspace,
 } from "../../workspaces/utils/db-helpers";
 
-/** Create or return the gitless branch workspace for a feature project. Activates the project in the sidebar. */
-export function ensureGitlessWorkspace(project: SelectProject): void {
+/** Create or return the gitless branch workspace for a feature project. Activates the project in the sidebar. Returns the workspace ID, or null if creation failed. */
+export function ensureGitlessWorkspace(project: SelectProject): string | null {
 	const existingWorkspace = getBranchWorkspace(project.id);
 	if (existingWorkspace) {
 		touchWorkspace(existingWorkspace.id);
 		setLastActiveWorkspace(existingWorkspace.id);
-		return;
+		return existingWorkspace.id;
 	}
 
 	const insertResult = localDb
@@ -30,10 +30,11 @@ export function ensureGitlessWorkspace(project: SelectProject): void {
 		.all();
 
 	const workspace = insertResult[0] ?? getBranchWorkspace(project.id);
-	if (!workspace) return;
+	if (!workspace) return null;
 
 	setLastActiveWorkspace(workspace.id);
 	activateProject(project);
+	return workspace.id;
 }
 
 /**

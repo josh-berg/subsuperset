@@ -354,6 +354,7 @@ export function ProjectSection({
 											<ChildRepoItem
 												key={child.id}
 												workspaceId={child.workspaceId}
+												mainRepoPath={child.mainRepoPath}
 												name={child.name}
 												branch={child.workspaceBranch}
 												isCollapsed={isSidebarCollapsed}
@@ -485,6 +486,7 @@ export function ProjectSection({
 										<ChildRepoItem
 											key={child.id}
 											workspaceId={child.workspaceId}
+											mainRepoPath={child.mainRepoPath}
 											name={child.name}
 											branch={child.workspaceBranch}
 										/>

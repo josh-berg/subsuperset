@@ -4,13 +4,11 @@ import { useCallback, useMemo } from "react";
 import type { IconType } from "react-icons";
 import { BsTerminalPlus } from "react-icons/bs";
 import { LuExternalLink, LuTrash2 } from "react-icons/lu";
-import { TbMessageCirclePlus } from "react-icons/tb";
 import { getAppOption } from "renderer/components/OpenInExternalDropdown";
 import { useHotkeyDisplay } from "renderer/hotkeys";
 import { electronTrpc } from "renderer/lib/electron-trpc";
 import { useWorkspaceDeleteHandler } from "renderer/react-query/workspaces";
 import { DeleteWorkspaceDialog } from "renderer/screens/main/components/WorkspaceSidebar/WorkspaceListItem/components/DeleteWorkspaceDialog/DeleteWorkspaceDialog";
-import { useTabsStore } from "renderer/stores/tabs/store";
 import { useTabsWithPresets } from "renderer/stores/tabs/useTabsWithPresets";
 import { useTheme } from "renderer/stores/theme";
 import supersetEmptyStateWordmark from "./assets/superset-empty-state-wordmark.svg";
@@ -36,7 +34,6 @@ export function EmptyTabView({
 	const { workspaceId } = useParams({
 		from: "/_authenticated/_dashboard/workspace/$workspaceId/",
 	});
-	const addChatTab = useTabsStore((s) => s.addChatTab);
 	const activeTheme = useTheme();
 
 	const { data: workspace } = electronTrpc.workspaces.get.useQuery({
@@ -47,17 +44,12 @@ export function EmptyTabView({
 		useWorkspaceDeleteHandler();
 
 	const { keys: newGroupDisplay } = useHotkeyDisplay("NEW_GROUP");
-	const { keys: newChatDisplay } = useHotkeyDisplay("NEW_CHAT");
 	const { keys: openInAppDisplay } = useHotkeyDisplay("OPEN_IN_APP");
 	const resolvedExternalApp: ExternalApp = defaultExternalApp ?? "cursor";
 
 	const handleShowTerminal = useCallback(() => {
 		addTab(workspaceId);
 	}, [addTab, workspaceId]);
-
-	const handleNewAgent = useCallback(() => {
-		addChatTab(workspaceId);
-	}, [addChatTab, workspaceId]);
 
 	const openInActionLabel = useMemo(() => {
 		const appOption = getAppOption(resolvedExternalApp);
@@ -74,13 +66,6 @@ export function EmptyTabView({
 				icon: BsTerminalPlus,
 				onClick: handleShowTerminal,
 			},
-			{
-				id: "new-agent",
-				label: "Open Chat",
-				display: newChatDisplay,
-				icon: TbMessageCirclePlus,
-				onClick: handleNewAgent,
-			},
 		];
 
 		if (openInActionLabel) {
@@ -95,9 +80,7 @@ export function EmptyTabView({
 
 		return baseActions;
 	}, [
-		handleNewAgent,
 		handleShowTerminal,
-		newChatDisplay,
 		newGroupDisplay,
 		openInActionLabel,
 		onOpenInApp,
