@@ -19,6 +19,7 @@ export const SETTING_ITEM_ID = {
 	GIT_BRANCH_PREFIX: "git-branch-prefix",
 	GIT_DELETE_LOCAL_BRANCH: "git-delete-local-branch",
 	GIT_WORKTREE_LOCATION: "git-worktree-location",
+	GIT_PROJECTS_ROOT: "git-projects-root",
 
 	AGENTS_ENABLED: "agents-enabled",
 	AGENTS_COMMANDS: "agents-commands",
@@ -310,6 +311,25 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
 			"storage",
 			"base",
 			"default",
+		],
+	},
+	{
+		id: SETTING_ITEM_ID.GIT_PROJECTS_ROOT,
+		section: "git",
+		title: "Projects root directory",
+		description:
+			"Root directory for all repos and projects. Single repos go into <root>/repos, multi-repo projects into <root>/projects.",
+		keywords: [
+			"git",
+			"projects",
+			"root",
+			"directory",
+			"path",
+			"folder",
+			"storage",
+			"repos",
+			"clone",
+			"location",
 		],
 	},
 	{

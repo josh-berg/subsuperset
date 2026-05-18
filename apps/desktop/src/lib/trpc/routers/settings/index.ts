@@ -876,6 +876,26 @@ export const createSettingsRouter = () => {
 				return { success: true };
 			}),
 
+		getProjectsRootDir: publicProcedure.query(() => {
+			const row = getSettings();
+			return row.projectsRootDir ?? null;
+		}),
+
+		setProjectsRootDir: publicProcedure
+			.input(z.object({ path: z.string().nullable() }))
+			.mutation(({ input }) => {
+				localDb
+					.insert(settings)
+					.values({ id: 1, projectsRootDir: input.path })
+					.onConflictDoUpdate({
+						target: settings.id,
+						set: { projectsRootDir: input.path },
+					})
+					.run();
+
+				return { success: true };
+			}),
+
 		getOpenLinksInApp: publicProcedure.query(() => {
 			const row = getSettings();
 			return row.openLinksInApp ?? DEFAULT_OPEN_LINKS_IN_APP;

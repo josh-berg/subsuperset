@@ -1,21 +1,19 @@
 import { Button } from "@superset/ui/button";
 import { cn } from "@superset/ui/utils";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { HiArrowLeft } from "react-icons/hi2";
 import {
 	LuFolderPlus,
 	LuGitBranch,
-	LuLayoutTemplate,
 	LuNetwork,
+	LuSettings,
 	LuX,
 } from "react-icons/lu";
 import { electronTrpc } from "renderer/lib/electron-trpc";
 import { CloneRepoTab } from "./components/CloneRepoTab";
 import { EmptyRepoTab } from "./components/EmptyRepoTab";
 import { MultiRepoTab } from "./components/MultiRepoTab";
-import { PathSelector } from "./components/PathSelector";
-import { TemplateTab } from "./components/TemplateTab";
 import type { NewProjectMode } from "./constants";
 
 export const Route = createFileRoute(
@@ -31,15 +29,9 @@ const OPTIONS: {
 	icon: typeof LuFolderPlus;
 }[] = [
 	{
-		mode: "empty",
-		label: "Empty",
-		description: "New git repository from scratch",
-		icon: LuFolderPlus,
-	},
-	{
 		mode: "clone",
-		label: "Clone",
-		description: "Clone from a remote URL",
+		label: "Single-repo",
+		description: "Work within a single repository",
 		icon: LuGitBranch,
 	},
 	{
@@ -49,24 +41,27 @@ const OPTIONS: {
 		icon: LuNetwork,
 	},
 	{
-		mode: "template",
-		label: "Template",
-		description: "Start from a project template",
-		icon: LuLayoutTemplate,
+		mode: "empty",
+		label: "New Repository",
+		description: "New git repository from scratch",
+		icon: LuFolderPlus,
 	},
 ];
 
 function NewProjectPage() {
-	const [mode, setMode] = useState<NewProjectMode>("empty");
+	const [mode, setMode] = useState<NewProjectMode>("clone");
 	const [error, setError] = useState<string | null>(null);
-	const [parentDir, setParentDir] = useState("");
 
-	const { data: homeDir } = electronTrpc.window.getHomeDir.useQuery();
+	const { data: projectsRootDir, isLoading: isRootLoading } =
+		electronTrpc.settings.getProjectsRootDir.useQuery();
 
-	useEffect(() => {
-		if (parentDir || !homeDir) return;
-		setParentDir(`${homeDir}/.superset/projects`);
-	}, [homeDir, parentDir]);
+	const reposDir =
+		projectsRootDir ? `${projectsRootDir}/repos` : null;
+	const projectsDir =
+		projectsRootDir ? `${projectsRootDir}/projects` : null;
+
+	const activeDir =
+		mode === "multi-repo" ? projectsDir : reposDir;
 
 	return (
 		<div className="flex flex-col h-full w-full relative overflow-hidden bg-background">
@@ -84,9 +79,39 @@ function NewProjectPage() {
 					<div className="w-full flex flex-col gap-5">
 						<h1 className="text-lg font-medium text-foreground">New Project</h1>
 
-						<PathSelector value={parentDir} onChange={setParentDir} />
+						{/* Storage location row */}
+						{!isRootLoading && (
+							projectsRootDir ? (
+								<div className="flex items-center gap-2 text-xs text-muted-foreground">
+									<span>Saving to</span>
+									<code className="bg-muted px-1.5 py-0.5 rounded text-foreground">
+										{activeDir}
+									</code>
+									<Link
+										to="/settings/git"
+										className="ml-auto flex items-center gap-1 hover:text-foreground transition-colors"
+									>
+										<LuSettings className="size-3" />
+										Change
+									</Link>
+								</div>
+							) : (
+								<div className="flex items-center gap-2 rounded-md px-3 py-2.5 bg-amber-500/10 border border-amber-500/20 text-xs text-amber-600 dark:text-amber-400">
+									<span className="flex-1">
+										Set a projects root directory before creating projects.
+									</span>
+									<Link
+										to="/settings/git"
+										className="flex items-center gap-1 font-medium hover:underline shrink-0"
+									>
+										<LuSettings className="size-3" />
+										Open Settings
+									</Link>
+								</div>
+							)
+						)}
 
-						<div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+						<div className="grid grid-cols-3 gap-3">
 							{OPTIONS.map((option) => {
 								const selected = mode === option.mode;
 								return (
@@ -124,16 +149,25 @@ function NewProjectPage() {
 						</div>
 
 						{mode === "empty" && (
-							<EmptyRepoTab onError={setError} parentDir={parentDir} />
+							<EmptyRepoTab
+								onError={setError}
+								parentDir={reposDir ?? ""}
+								disabled={!projectsRootDir}
+							/>
 						)}
 						{mode === "clone" && (
-							<CloneRepoTab onError={setError} parentDir={parentDir} />
+							<CloneRepoTab
+								onError={setError}
+								parentDir={reposDir ?? ""}
+								disabled={!projectsRootDir}
+							/>
 						)}
 						{mode === "multi-repo" && (
-							<MultiRepoTab onError={setError} parentDir={parentDir} />
-						)}
-						{mode === "template" && (
-							<TemplateTab onError={setError} parentDir={parentDir} />
+							<MultiRepoTab
+								onError={setError}
+								parentDir={projectsDir ?? ""}
+								disabled={!projectsRootDir}
+							/>
 						)}
 
 						{error && (

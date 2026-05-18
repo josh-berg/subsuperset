@@ -7,9 +7,10 @@ import { useProjectCreationHandler } from "../../hooks/useProjectCreationHandler
 interface EmptyRepoTabProps {
 	onError: (error: string) => void;
 	parentDir: string;
+	disabled?: boolean;
 }
 
-export function EmptyRepoTab({ onError, parentDir }: EmptyRepoTabProps) {
+export function EmptyRepoTab({ onError, parentDir, disabled }: EmptyRepoTabProps) {
 	const [name, setName] = useState("");
 	const createEmptyRepo = electronTrpc.projects.createEmptyRepo.useMutation();
 	const { handleResult, handleError } = useProjectCreationHandler(onError);
@@ -49,9 +50,9 @@ export function EmptyRepoTab({ onError, parentDir }: EmptyRepoTabProps) {
 					value={name}
 					onChange={(e) => setName(e.target.value)}
 					placeholder="my-project"
-					disabled={isLoading}
+					disabled={isLoading || disabled}
 					onKeyDown={(e) => {
-						if (e.key === "Enter" && !isLoading) {
+						if (e.key === "Enter" && !isLoading && !disabled) {
 							handleCreate();
 						}
 					}}
@@ -59,7 +60,7 @@ export function EmptyRepoTab({ onError, parentDir }: EmptyRepoTabProps) {
 				/>
 			</div>
 			<div className="flex justify-end pt-2 border-t border-border/40">
-				<Button onClick={handleCreate} disabled={isLoading} size="sm">
+				<Button onClick={handleCreate} disabled={isLoading || disabled} size="sm">
 					{isLoading ? "Creating..." : "Create"}
 				</Button>
 			</div>

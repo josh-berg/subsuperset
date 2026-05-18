@@ -322,7 +322,7 @@ export const createFeatureProjectsRouter = () => {
 				z.object({
 					featureProjectId: z.string(),
 					repoFullName: z.string().min(1),
-					branchName: z.string().min(1),
+					branchName: z.string().min(1).optional(),
 					parentBranch: z.string().optional(),
 				}),
 			)
@@ -368,19 +368,23 @@ export const createFeatureProjectsRouter = () => {
 				const defaultBranch =
 					input.parentBranch ?? (await getDefaultBranch(clonePath));
 
-				// Create or checkout the feature branch
-				const git = await getSimpleGitWithShellPath(clonePath);
-				try {
-					await git.checkoutLocalBranch(input.branchName);
-				} catch {
-					// Branch may already exist locally or remotely
+				// Create or checkout the feature branch (only when a branch name was supplied)
+				if (input.branchName) {
+					const git = await getSimpleGitWithShellPath(clonePath);
 					try {
-						await git.checkout(input.branchName);
+						await git.checkoutLocalBranch(input.branchName);
 					} catch {
-						// If checkout fails, create from parent branch
-						await git.checkoutBranch(input.branchName, defaultBranch);
+						// Branch may already exist locally or remotely
+						try {
+							await git.checkout(input.branchName);
+						} catch {
+							// If checkout fails, create from parent branch
+							await git.checkoutBranch(input.branchName, defaultBranch);
+						}
 					}
 				}
+
+				const resolvedBranch = input.branchName ?? defaultBranch;
 
 				// Create the child project record (tabOrder=null keeps it hidden from main sidebar)
 				const childProject = localDb
@@ -399,7 +403,7 @@ export const createFeatureProjectsRouter = () => {
 
 				const workspaceId = ensureChildRepoWorkspace(
 					childProject,
-					input.branchName,
+					resolvedBranch,
 				);
 
 				track("feature_project_repo_added", {

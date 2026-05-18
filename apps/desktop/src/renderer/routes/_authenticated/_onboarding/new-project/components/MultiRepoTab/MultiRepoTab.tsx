@@ -24,11 +24,12 @@ interface RepoSelection {
 interface MultiRepoTabProps {
 	onError: (error: string) => void;
 	parentDir: string;
+	disabled?: boolean;
 }
 
 type Step = "configure" | "select-repos" | "creating";
 
-export function MultiRepoTab({ onError, parentDir }: MultiRepoTabProps) {
+export function MultiRepoTab({ onError, parentDir, disabled }: MultiRepoTabProps) {
 	const navigate = useNavigate();
 	const utils = electronTrpc.useUtils();
 
@@ -103,10 +104,6 @@ export function MultiRepoTab({ onError, parentDir }: MultiRepoTabProps) {
 			onError("Please enter a project name");
 			return;
 		}
-		if (!branchName.trim()) {
-			onError("Please enter a feature branch name");
-			return;
-		}
 		if (!parentDir.trim()) {
 			onError("Please select a project location");
 			return;
@@ -134,7 +131,7 @@ export function MultiRepoTab({ onError, parentDir }: MultiRepoTabProps) {
 				await addRepo.mutateAsync({
 					featureProjectId: project.id,
 					repoFullName: repo.fullName,
-					branchName: branchName.trim(),
+					branchName: branchName.trim() || undefined,
 					parentBranch: repo.parentBranch.trim() || undefined,
 				});
 			}
@@ -193,7 +190,7 @@ export function MultiRepoTab({ onError, parentDir }: MultiRepoTabProps) {
 								>
 									{repo.name}
 								</span>
-								{(isDone || creationDone) && (
+								{(isDone || creationDone) && branchName.trim() && (
 									<span className="text-xs text-muted-foreground ml-auto">
 										{branchName}
 									</span>
@@ -394,12 +391,15 @@ export function MultiRepoTab({ onError, parentDir }: MultiRepoTabProps) {
 				/>
 			</div>
 			<div className="flex flex-col gap-1.5">
-				<label
-					htmlFor="feature-branch-name"
-					className="text-sm font-medium text-foreground"
-				>
-					Feature branch name
-				</label>
+				<div className="flex items-center gap-1.5">
+					<label
+						htmlFor="feature-branch-name"
+						className="text-sm font-medium text-foreground"
+					>
+						Feature branch name
+					</label>
+					<span className="text-xs text-muted-foreground">(optional)</span>
+				</div>
 				<Input
 					id="feature-branch-name"
 					value={branchName}
@@ -410,11 +410,11 @@ export function MultiRepoTab({ onError, parentDir }: MultiRepoTabProps) {
 					}}
 				/>
 				<p className="text-xs text-muted-foreground">
-					This branch will be created in each repo you add.
+					Leave blank to stay on the default branch in each repo.
 				</p>
 			</div>
 			<div className="flex justify-end pt-2 border-t border-border/40">
-				<Button size="sm" onClick={handleConfigure}>
+				<Button size="sm" onClick={handleConfigure} disabled={disabled}>
 					Next: Select repos
 				</Button>
 			</div>

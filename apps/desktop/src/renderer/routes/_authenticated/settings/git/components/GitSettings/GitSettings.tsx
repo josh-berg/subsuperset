@@ -40,6 +40,10 @@ export function GitSettings({ visibleItems }: GitSettingsProps) {
 		SETTING_ITEM_ID.GIT_WORKTREE_LOCATION,
 		visibleItems,
 	);
+	const showProjectsRoot = isItemVisible(
+		SETTING_ITEM_ID.GIT_PROJECTS_ROOT,
+		visibleItems,
+	);
 
 	const utils = electronTrpc.useUtils();
 
@@ -106,6 +110,29 @@ export function GitSettings({ visibleItems }: GitSettingsProps) {
 			customPrefix: sanitized || null,
 		});
 	};
+
+	const { data: projectsRootDir, isLoading: isProjectsRootDirLoading } =
+		electronTrpc.settings.getProjectsRootDir.useQuery();
+	const setProjectsRootDir =
+		electronTrpc.settings.setProjectsRootDir.useMutation({
+			onMutate: async ({ path }) => {
+				await utils.settings.getProjectsRootDir.cancel();
+				const previous = utils.settings.getProjectsRootDir.getData();
+				utils.settings.getProjectsRootDir.setData(undefined, path);
+				return { previous };
+			},
+			onError: (_err, _vars, context) => {
+				if (context?.previous !== undefined) {
+					utils.settings.getProjectsRootDir.setData(
+						undefined,
+						context.previous,
+					);
+				}
+			},
+			onSettled: () => {
+				utils.settings.getProjectsRootDir.invalidate();
+			},
+		});
 
 	const { data: worktreeBaseDir, isLoading: isWorktreeBaseDirLoading } =
 		electronTrpc.settings.getWorktreeBaseDir.useQuery();
@@ -225,6 +252,31 @@ export function GitSettings({ visibleItems }: GitSettingsProps) {
 								/>
 							)}
 						</div>
+					</div>
+				)}
+
+				{showProjectsRoot && (
+					<div className="space-y-0.5">
+						<Label className="text-sm font-medium">Projects root directory</Label>
+						<p className="text-xs text-muted-foreground">
+							Single repos clone to{" "}
+							<code className="bg-muted px-1 rounded">
+								{projectsRootDir ?? "…"}/repos
+							</code>
+							, multi-repo projects to{" "}
+							<code className="bg-muted px-1 rounded">
+								{projectsRootDir ?? "…"}/projects
+							</code>
+						</p>
+						<WorktreeLocationPicker
+							currentPath={projectsRootDir}
+							defaultPathLabel="Not configured"
+							dialogTitle="Select projects root directory"
+							defaultBrowsePath={projectsRootDir}
+							disabled={isProjectsRootDirLoading || setProjectsRootDir.isPending}
+							onSelect={(path) => setProjectsRootDir.mutate({ path })}
+							onReset={() => setProjectsRootDir.mutate({ path: null })}
+						/>
 					</div>
 				)}
 

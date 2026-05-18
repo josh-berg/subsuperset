@@ -8,9 +8,10 @@ import { useProjectCreationHandler } from "../../hooks/useProjectCreationHandler
 interface CloneRepoTabProps {
 	onError: (error: string) => void;
 	parentDir: string;
+	disabled?: boolean;
 }
 
-export function CloneRepoTab({ onError, parentDir }: CloneRepoTabProps) {
+export function CloneRepoTab({ onError, parentDir, disabled }: CloneRepoTabProps) {
 	const [url, setUrl] = useState("");
 	const [repoSearch, setRepoSearch] = useState("");
 	const [selectedFullName, setSelectedFullName] = useState<string | null>(null);
@@ -117,7 +118,7 @@ export function CloneRepoTab({ onError, parentDir }: CloneRepoTabProps) {
 						<button
 							type="button"
 							onClick={() => syncCache.mutate()}
-							disabled={isSyncing || isLoading}
+							disabled={isSyncing || isLoading || disabled}
 							className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
 							title="Refresh repo list"
 						>
@@ -145,7 +146,7 @@ export function CloneRepoTab({ onError, parentDir }: CloneRepoTabProps) {
 									: "Search repos…"
 						}
 						className="pl-8"
-						disabled={isLoading || isSyncing}
+						disabled={isLoading || isSyncing || disabled}
 						autoFocus
 					/>
 				</div>
@@ -217,9 +218,9 @@ export function CloneRepoTab({ onError, parentDir }: CloneRepoTabProps) {
 					value={url}
 					onChange={(e) => handleUrlChange(e.target.value)}
 					placeholder="https:// or git@github.com:user/repo.git"
-					disabled={isLoading}
+					disabled={isLoading || disabled}
 					onKeyDown={(e) => {
-						if (e.key === "Enter" && !isLoading) {
+						if (e.key === "Enter" && !isLoading && !disabled) {
 							handleClone();
 						}
 					}}
@@ -229,7 +230,7 @@ export function CloneRepoTab({ onError, parentDir }: CloneRepoTabProps) {
 			<div className="flex justify-end pt-2 border-t border-border/40">
 				<Button
 					onClick={handleClone}
-					disabled={isLoading || !url.trim()}
+					disabled={isLoading || !url.trim() || disabled}
 					size="sm"
 				>
 					{isLoading ? "Cloning..." : "Clone"}
