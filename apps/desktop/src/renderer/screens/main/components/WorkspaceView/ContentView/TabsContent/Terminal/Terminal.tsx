@@ -423,9 +423,15 @@ export const Terminal = ({ paneId, tabId, workspaceId }: TerminalProps) => {
 			if (!plainText) return;
 			text = shellEscapePaths([plainText]);
 		}
-		if (!isExitedRef.current) {
-			writeRef.current({ paneId, data: text });
-		}
+		if (isExitedRef.current) return;
+		// Wrap in bracketed paste so TUI apps (e.g. Claude Code) can distinguish
+		// a dropped file path from typed input. This is how iTerm/Terminal.app
+		// behave for drag-and-drop and is what lets Claude Code recognize an
+		// image path and substitute `[Image #N]` for it.
+		const data = isBracketedPasteRef.current
+			? `\x1b[200~${text}\x1b[201~`
+			: text;
+		writeRef.current({ paneId, data });
 	};
 
 	return (

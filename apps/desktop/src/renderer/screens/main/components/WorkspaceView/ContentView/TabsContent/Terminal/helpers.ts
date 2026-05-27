@@ -19,7 +19,7 @@ import {
 import { RESIZE_DEBOUNCE_MS, TERMINAL_OPTIONS } from "./config";
 import { FilePathLinkProvider, UrlLinkProvider } from "./link-providers";
 import { suppressQueryResponses } from "./suppressQueryResponses";
-import { scrollToBottom } from "./utils";
+import { scrollToBottom, shellEscapePaths } from "./utils";
 
 /**
  * Get the default terminal theme from localStorage cache.
@@ -393,8 +393,45 @@ export function setupPasteHandler(
 		return types.some((type) => type !== "text/plain");
 	};
 
+	const getPastedImageDiskPath = (event: ClipboardEvent): string | null => {
+		const items = event.clipboardData?.items;
+		if (!items) return null;
+		for (const item of items) {
+			if (item.kind !== "file" || !item.type.startsWith("image/")) continue;
+			const file = item.getAsFile();
+			if (!file) continue;
+			const path = window.webUtils?.getPathForFile?.(file);
+			if (path) return path;
+		}
+		return null;
+	};
+
 	const handlePaste = (event: ClipboardEvent) => {
 		const text = event.clipboardData?.getData("text/plain") ?? "";
+
+		// When an image is on the clipboard and backed by a real file on disk
+		// (e.g. macOS screencapture writes to a temp dir, then puts both the
+		// PNG data and a file URL on the pasteboard), write the shell-escaped
+		// path wrapped in bracketed paste — mirroring drag-and-drop. This lets
+		// TUI apps like Claude Code recognize the path as an image attachment
+		// and substitute `[Image #N]` for it. Without this, the OS-provided
+		// `text/plain` payload is often unescaped and not recognized, and
+		// reading the system clipboard via Ctrl+V returns a generic icon
+		// thumbnail instead of the real image.
+		if (options.onWrite) {
+			const imagePath = getPastedImageDiskPath(event);
+			if (imagePath) {
+				event.preventDefault();
+				event.stopImmediatePropagation();
+				const escaped = shellEscapePaths([imagePath]);
+				const bracketed = options.isBracketedPasteEnabled?.()
+					? `\x1b[200~${escaped}\x1b[201~`
+					: escaped;
+				options.onWrite(bracketed);
+				return;
+			}
+		}
+
 		if (!text) {
 			// Match terminal behavior like iTerm's "Paste or send ^V":
 			// when clipboard has non-text payloads but no plain text, forward Ctrl+V.
