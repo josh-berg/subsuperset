@@ -15,6 +15,8 @@ interface WorkspaceSidebarState {
 	lastExpandedWidth: number;
 	// Use string[] instead of Set<string> for JSON serialization with Zustand persist
 	collapsedProjectIds: string[];
+	// Category section keys (e.g. "normal", "gitless", "feature") that are collapsed
+	collapsedCategoryKeys: string[];
 	isResizing: boolean;
 
 	toggleOpen: () => void;
@@ -23,6 +25,8 @@ interface WorkspaceSidebarState {
 	setIsResizing: (isResizing: boolean) => void;
 	toggleProjectCollapsed: (projectId: string) => void;
 	isProjectCollapsed: (projectId: string) => boolean;
+	toggleCategoryCollapsed: (categoryKey: string) => void;
+	isCategoryCollapsed: (categoryKey: string) => boolean;
 	toggleCollapsed: () => void;
 	isCollapsed: () => boolean;
 }
@@ -35,6 +39,7 @@ export const useWorkspaceSidebarStore = create<WorkspaceSidebarState>()(
 				width: DEFAULT_WORKSPACE_SIDEBAR_WIDTH,
 				lastExpandedWidth: DEFAULT_WORKSPACE_SIDEBAR_WIDTH,
 				collapsedProjectIds: [],
+				collapsedCategoryKeys: [],
 				isResizing: false,
 
 				toggleOpen: () => {
@@ -96,6 +101,20 @@ export const useWorkspaceSidebarStore = create<WorkspaceSidebarState>()(
 					return get().collapsedProjectIds.includes(projectId);
 				},
 
+				toggleCategoryCollapsed: (categoryKey) => {
+					set((state) => ({
+						collapsedCategoryKeys: state.collapsedCategoryKeys.includes(
+							categoryKey,
+						)
+							? state.collapsedCategoryKeys.filter((key) => key !== categoryKey)
+							: [...state.collapsedCategoryKeys, categoryKey],
+					}));
+				},
+
+				isCategoryCollapsed: (categoryKey) => {
+					return get().collapsedCategoryKeys.includes(categoryKey);
+				},
+
 				toggleCollapsed: () => {
 					const { width, lastExpandedWidth } = get();
 					const isCurrentlyCollapsed =
@@ -121,6 +140,7 @@ export const useWorkspaceSidebarStore = create<WorkspaceSidebarState>()(
 					width: state.width,
 					lastExpandedWidth: state.lastExpandedWidth,
 					collapsedProjectIds: state.collapsedProjectIds,
+					collapsedCategoryKeys: state.collapsedCategoryKeys,
 					// isResizing intentionally excluded - ephemeral UI state
 				}),
 			},

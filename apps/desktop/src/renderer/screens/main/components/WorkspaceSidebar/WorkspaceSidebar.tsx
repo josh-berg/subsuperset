@@ -1,7 +1,9 @@
 import { cn } from "@superset/ui/utils";
 import { useCallback, useEffect, useMemo } from "react";
+import { HiChevronRight } from "react-icons/hi2";
 import { useWorkspaceShortcuts } from "renderer/hooks/useWorkspaceShortcuts";
 import { useWorkspaceSelectionStore } from "renderer/stores/workspace-selection";
+import { useWorkspaceSidebarStore } from "renderer/stores/workspace-sidebar-state";
 import { MultiDragPreview } from "./MultiDragPreview";
 import { PortsList } from "./PortsList";
 import { ProjectSection } from "./ProjectSection";
@@ -22,6 +24,12 @@ export function WorkspaceSidebar({
 }: WorkspaceSidebarProps) {
 	const { groups } = useWorkspaceShortcuts();
 	const clearSelection = useWorkspaceSelectionStore((s) => s.clearSelection);
+	const collapsedCategoryKeys = useWorkspaceSidebarStore(
+		(s) => s.collapsedCategoryKeys,
+	);
+	const toggleCategoryCollapsed = useWorkspaceSidebarStore(
+		(s) => s.toggleCategoryCollapsed,
+	);
 
 	const groupsByCategory = useMemo(() => {
 		const withIndices = groups.map((group, globalIndex) => ({
@@ -121,49 +129,68 @@ export function WorkspaceSidebar({
 				className="flex-1 overflow-y-auto hide-scrollbar"
 				onMouseDown={handleSidebarMouseDown}
 			>
-				{categories.map((category, catIdx) => (
-					<div key={category.key}>
-						{showCategoryHeaders && catIdx > 0 && isCollapsed && (
-							<div className="flex justify-center py-1">
-								<div className="w-5 border-t border-border" />
-							</div>
-						)}
-						{showCategoryHeaders && !isCollapsed && (
-							<div
-								className={cn(
-									"px-3 pb-0.5 text-xs font-medium text-muted-foreground/60 uppercase tracking-wider select-none",
-									catIdx === 0 ? "pt-2" : "pt-3",
-								)}
-							>
-								{category.label}
-							</div>
-						)}
-						{category.items.map(({ group, globalIndex }) => (
-							<ProjectSection
-								key={group.project.id}
-								projectId={group.project.id}
-								projectName={group.project.name}
-								projectColor={group.project.color}
-								githubOwner={group.project.githubOwner}
-								mainRepoPath={group.project.mainRepoPath}
-								hideImage={group.project.hideImage}
-								iconUrl={group.project.iconUrl}
-								iconLetter={group.project.iconLetter}
-								isGitless={group.project.isGitless ?? false}
-								isFeatureProject={group.project.isFeatureProject ?? false}
-								childProjects={group.childProjects ?? []}
-								workspaces={group.workspaces}
-								sections={group.sections ?? []}
-								topLevelItems={group.topLevelItems}
-								shortcutBaseIndex={
-									projectShortcutIndices.get(group.project.id) ?? 0
-								}
-								index={globalIndex}
-								isCollapsed={isCollapsed}
-							/>
-						))}
-					</div>
-				))}
+				{categories.map((category, catIdx) => {
+					// Category collapsing only applies when headers are shown in the
+					// expanded sidebar; the icon-only view has no header to toggle.
+					const isCategoryCollapsed =
+						showCategoryHeaders &&
+						!isCollapsed &&
+						collapsedCategoryKeys.includes(category.key);
+
+					return (
+						<div key={category.key}>
+							{showCategoryHeaders && catIdx > 0 && isCollapsed && (
+								<div className="flex justify-center py-1">
+									<div className="w-5 border-t border-border" />
+								</div>
+							)}
+							{showCategoryHeaders && !isCollapsed && (
+								<button
+									type="button"
+									onClick={() => toggleCategoryCollapsed(category.key)}
+									className={cn(
+										"flex items-center gap-1 w-full px-3 pb-0.5 text-xs font-medium text-muted-foreground/60 hover:text-muted-foreground uppercase tracking-wider select-none transition-colors",
+										catIdx === 0 ? "pt-2" : "pt-3",
+									)}
+									aria-expanded={!isCategoryCollapsed}
+								>
+									<HiChevronRight
+										className={cn(
+											"size-3 shrink-0 transition-transform duration-150",
+											!isCategoryCollapsed && "rotate-90",
+										)}
+									/>
+									<span className="truncate">{category.label}</span>
+								</button>
+							)}
+							{!isCategoryCollapsed &&
+								category.items.map(({ group, globalIndex }) => (
+									<ProjectSection
+										key={group.project.id}
+										projectId={group.project.id}
+										projectName={group.project.name}
+										projectColor={group.project.color}
+										githubOwner={group.project.githubOwner}
+										mainRepoPath={group.project.mainRepoPath}
+										hideImage={group.project.hideImage}
+										iconUrl={group.project.iconUrl}
+										iconLetter={group.project.iconLetter}
+										isGitless={group.project.isGitless ?? false}
+										isFeatureProject={group.project.isFeatureProject ?? false}
+										childProjects={group.childProjects ?? []}
+										workspaces={group.workspaces}
+										sections={group.sections ?? []}
+										topLevelItems={group.topLevelItems}
+										shortcutBaseIndex={
+											projectShortcutIndices.get(group.project.id) ?? 0
+										}
+										index={globalIndex}
+										isCollapsed={isCollapsed}
+									/>
+								))}
+						</div>
+					);
+				})}
 
 				{groups.length === 0 && !isCollapsed && (
 					<div className="flex flex-col items-center justify-center h-32 text-muted-foreground text-sm">
