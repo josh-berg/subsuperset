@@ -1,7 +1,11 @@
 import { Popover, PopoverContent, PopoverTrigger } from "@superset/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@superset/ui/tooltip";
 import { useState } from "react";
-import { HiOutlineArrowPath, HiOutlineCurrencyDollar } from "react-icons/hi2";
+import {
+	HiOutlineArrowPath,
+	HiOutlineCurrencyDollar,
+	HiOutlineExclamationTriangle,
+} from "react-icons/hi2";
 import { electronTrpc } from "renderer/lib/electron-trpc";
 import type { DailyUsage, ModelUsage } from "./types";
 
@@ -70,8 +74,20 @@ function ModelRow({ m }: { m: ModelUsage }) {
 					{formatTokens(totalIn)}↑ {formatTokens(m.outputTokens)}↓
 				</span>
 			</div>
-			<span className="font-medium tabular-nums text-foreground/80 shrink-0">
-				{formatCost(m.costUSD)}
+			<span className="flex items-center gap-1 shrink-0">
+				{m.missingPricing && (
+					<Tooltip delayDuration={100}>
+						<TooltipTrigger asChild>
+							<HiOutlineExclamationTriangle className="h-3.5 w-3.5 text-amber-500 cursor-default" />
+						</TooltipTrigger>
+						<TooltipContent side="top" sideOffset={4} showArrow={false}>
+							No pricing data for this model yet.
+						</TooltipContent>
+					</Tooltip>
+				)}
+				<span className="font-medium tabular-nums text-foreground/80">
+					{formatCost(m.costUSD)}
+				</span>
 			</span>
 		</div>
 	);
@@ -137,7 +153,7 @@ export function ClaudeCosts() {
 		refetch,
 		isFetching,
 	} = electronTrpc.claudeCosts.getSnapshot.useQuery(undefined, {
-		refetchInterval: open ? 30_000 : 120_000,
+		refetchInterval: 600_000,
 	});
 
 	const todayCost = snapshot?.todayCostUSD ?? 0;

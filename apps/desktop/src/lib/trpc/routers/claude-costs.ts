@@ -9,6 +9,7 @@ const modelUsageSchema = z.object({
 	cacheReadTokens: z.number().int().min(0),
 	outputTokens: z.number().int().min(0),
 	costUSD: z.number().min(0),
+	missingPricing: z.boolean(),
 });
 
 const dailyUsageSchema = z.object({

@@ -5,6 +5,7 @@ export interface ModelUsage {
 	cacheReadTokens: number;
 	outputTokens: number;
 	costUSD: number;
+	missingPricing: boolean;
 }
 
 export interface DailyUsage {
