@@ -380,7 +380,9 @@ export const githubRepoCache = sqliteTable(
 		fullName: text("full_name").primaryKey(),
 		name: text("name").notNull(),
 		description: text("description"),
-		isPrivate: integer("is_private", { mode: "boolean" }).notNull().default(false),
+		isPrivate: integer("is_private", { mode: "boolean" })
+			.notNull()
+			.default(false),
 		url: text("url").notNull(),
 		/** Unix ms timestamp of the sync run that wrote this row. */
 		syncedAt: integer("synced_at").notNull(),
@@ -419,3 +421,33 @@ export const browserHistory = sqliteTable(
 
 export type InsertBrowserHistory = typeof browserHistory.$inferInsert;
 export type SelectBrowserHistory = typeof browserHistory.$inferSelect;
+
+/**
+ * Repo groups - saved sets of GitHub repos (by full name) the user can quickly
+ * select when creating a multi-repo feature project. Acts like favorites.
+ */
+export const repoGroups = sqliteTable(
+	"repo_groups",
+	{
+		id: text("id")
+			.primaryKey()
+			.$defaultFn(() => uuidv4()),
+		name: text("name").notNull(),
+		/** GitHub repo full names, e.g. "hudl/some-repo". */
+		repos: text("repos", { mode: "json" })
+			.$type<string[]>()
+			.notNull()
+			.default([]),
+		tabOrder: integer("tab_order"),
+		createdAt: integer("created_at")
+			.notNull()
+			.$defaultFn(() => Date.now()),
+		updatedAt: integer("updated_at")
+			.notNull()
+			.$defaultFn(() => Date.now()),
+	},
+	(table) => [index("repo_groups_created_at_idx").on(table.createdAt)],
+);
+
+export type InsertRepoGroup = typeof repoGroups.$inferInsert;
+export type SelectRepoGroup = typeof repoGroups.$inferSelect;

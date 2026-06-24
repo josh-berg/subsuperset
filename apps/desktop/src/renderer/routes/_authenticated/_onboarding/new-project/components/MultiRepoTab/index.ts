@@ -1,1 +1,1 @@
-export { MultiRepoTab } from "./MultiRepoTab";
+export { type MultiRepoStep, MultiRepoTab } from "./MultiRepoTab";

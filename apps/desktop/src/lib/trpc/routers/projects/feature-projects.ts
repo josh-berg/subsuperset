@@ -221,7 +221,9 @@ export const createFeatureProjectsRouter = () => {
 								{
 									fullName,
 									name: String(item.name ?? ""),
-									description: item.description ? String(item.description) : null,
+									description: item.description
+										? String(item.description)
+										: null,
 									isPrivate: Boolean(item.isPrivate),
 									url: String(item.url ?? ""),
 									syncedAt: Date.now(),
@@ -239,7 +241,10 @@ export const createFeatureProjectsRouter = () => {
 				// Insert in batches of 500 to stay well within SQLite's variable limit
 				const BATCH = 500;
 				for (let i = 0; i < rows.length; i += BATCH) {
-					localDb.insert(githubRepoCache).values(rows.slice(i, i + BATCH)).run();
+					localDb
+						.insert(githubRepoCache)
+						.values(rows.slice(i, i + BATCH))
+						.run();
 				}
 
 				return { count: rows.length };
@@ -247,7 +252,8 @@ export const createFeatureProjectsRouter = () => {
 				console.warn("[syncRepoCache] Failed:", err);
 				throw new TRPCError({
 					code: "INTERNAL_SERVER_ERROR",
-					message: err instanceof Error ? err.message : "Failed to sync repo cache",
+					message:
+						err instanceof Error ? err.message : "Failed to sync repo cache",
 				});
 			}
 		}),

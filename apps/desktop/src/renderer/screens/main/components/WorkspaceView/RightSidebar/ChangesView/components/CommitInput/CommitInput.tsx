@@ -88,7 +88,11 @@ export function CommitInput({
 			{ worktreePath, setUpstream: true },
 			{
 				onSuccess: () => {
-					if (isPublishing && !hasExistingPR && shouldAutoCreatePRAfterPublish) {
+					if (
+						isPublishing &&
+						!hasExistingPR &&
+						shouldAutoCreatePRAfterPublish
+					) {
 						createOrOpenPR();
 					}
 				},

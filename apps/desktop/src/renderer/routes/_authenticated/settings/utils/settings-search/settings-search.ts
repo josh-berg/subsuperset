@@ -21,6 +21,8 @@ export const SETTING_ITEM_ID = {
 	GIT_WORKTREE_LOCATION: "git-worktree-location",
 	GIT_PROJECTS_ROOT: "git-projects-root",
 
+	REPO_GROUPS_MANAGE: "repo-groups-manage",
+
 	AGENTS_ENABLED: "agents-enabled",
 	AGENTS_COMMANDS: "agents-commands",
 	AGENTS_TASK_PROMPTS: "agents-task-prompts",
@@ -330,6 +332,26 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
 			"repos",
 			"clone",
 			"location",
+		],
+	},
+	{
+		id: SETTING_ITEM_ID.REPO_GROUPS_MANAGE,
+		section: "repo-groups",
+		title: "Repo groups",
+		description:
+			"Save reusable groups of repositories to quickly select when creating multi-repo projects.",
+		keywords: [
+			"repo",
+			"groups",
+			"favorites",
+			"multi-repo",
+			"multi repo",
+			"bundle",
+			"set",
+			"collection",
+			"repositories",
+			"project",
+			"create",
 		],
 	},
 	{

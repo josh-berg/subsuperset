@@ -241,9 +241,7 @@ export function WorkspaceResourceSection({
 													workspaceClasses.hoverClass,
 												)}
 												aria-label={
-													isCollapsed
-														? "Expand worktree"
-														: "Collapse worktree"
+													isCollapsed ? "Expand worktree" : "Collapse worktree"
 												}
 											>
 												{isCollapsed ? (

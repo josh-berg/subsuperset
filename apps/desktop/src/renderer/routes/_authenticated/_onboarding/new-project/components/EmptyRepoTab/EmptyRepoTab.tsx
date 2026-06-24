@@ -10,7 +10,11 @@ interface EmptyRepoTabProps {
 	disabled?: boolean;
 }
 
-export function EmptyRepoTab({ onError, parentDir, disabled }: EmptyRepoTabProps) {
+export function EmptyRepoTab({
+	onError,
+	parentDir,
+	disabled,
+}: EmptyRepoTabProps) {
 	const [name, setName] = useState("");
 	const createEmptyRepo = electronTrpc.projects.createEmptyRepo.useMutation();
 	const { handleResult, handleError } = useProjectCreationHandler(onError);
@@ -60,7 +64,11 @@ export function EmptyRepoTab({ onError, parentDir, disabled }: EmptyRepoTabProps
 				/>
 			</div>
 			<div className="flex justify-end pt-2 border-t border-border/40">
-				<Button onClick={handleCreate} disabled={isLoading || disabled} size="sm">
+				<Button
+					onClick={handleCreate}
+					disabled={isLoading || disabled}
+					size="sm"
+				>
 					{isLoading ? "Creating..." : "Create"}
 				</Button>
 			</div>

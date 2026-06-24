@@ -257,7 +257,9 @@ export function GitSettings({ visibleItems }: GitSettingsProps) {
 
 				{showProjectsRoot && (
 					<div className="space-y-0.5">
-						<Label className="text-sm font-medium">Projects root directory</Label>
+						<Label className="text-sm font-medium">
+							Projects root directory
+						</Label>
 						<p className="text-xs text-muted-foreground">
 							Single repos clone to{" "}
 							<code className="bg-muted px-1 rounded">
@@ -273,7 +275,9 @@ export function GitSettings({ visibleItems }: GitSettingsProps) {
 							defaultPathLabel="Not configured"
 							dialogTitle="Select projects root directory"
 							defaultBrowsePath={projectsRootDir}
-							disabled={isProjectsRootDirLoading || setProjectsRootDir.isPending}
+							disabled={
+								isProjectsRootDirLoading || setProjectsRootDir.isPending
+							}
 							onSelect={(path) => setProjectsRootDir.mutate({ path })}
 							onReset={() => setProjectsRootDir.mutate({ path: null })}
 						/>

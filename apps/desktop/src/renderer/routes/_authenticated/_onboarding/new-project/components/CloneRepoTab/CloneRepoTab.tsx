@@ -11,7 +11,11 @@ interface CloneRepoTabProps {
 	disabled?: boolean;
 }
 
-export function CloneRepoTab({ onError, parentDir, disabled }: CloneRepoTabProps) {
+export function CloneRepoTab({
+	onError,
+	parentDir,
+	disabled,
+}: CloneRepoTabProps) {
 	const [url, setUrl] = useState("");
 	const [repoSearch, setRepoSearch] = useState("");
 	const [selectedFullName, setSelectedFullName] = useState<string | null>(null);

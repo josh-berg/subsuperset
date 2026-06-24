@@ -8,7 +8,7 @@ import {
 	HiOutlineShieldCheck,
 	HiOutlineSparkles,
 } from "react-icons/hi2";
-import { LuBrain, LuGitBranch, LuKeyboard } from "react-icons/lu";
+import { LuBrain, LuGitBranch, LuKeyboard, LuLayers } from "react-icons/lu";
 import { electronTrpc } from "renderer/lib/electron-trpc";
 import type { SettingsSection } from "renderer/stores/settings-state";
 
@@ -22,6 +22,7 @@ type SettingsRoute =
 	| "/settings/keyboard"
 	| "/settings/behavior"
 	| "/settings/git"
+	| "/settings/repo-groups"
 	| "/settings/agents"
 	| "/settings/terminal"
 	| "/settings/models"
@@ -78,6 +79,12 @@ const SECTION_GROUPS: SectionGroup[] = [
 				section: "git",
 				label: "Git & Worktrees",
 				icon: <LuGitBranch className="h-4 w-4" />,
+			},
+			{
+				id: "/settings/repo-groups",
+				section: "repo-groups",
+				label: "Repo Groups",
+				icon: <LuLayers className="h-4 w-4" />,
 			},
 			{
 				id: "/settings/agents",

@@ -131,7 +131,11 @@ export function ProjectHeader({
 		setIsCloseDialogOpen(true);
 	};
 
-	const handleConfirmClose = ({ deleteFromDisk }: { deleteFromDisk: boolean }) => {
+	const handleConfirmClose = ({
+		deleteFromDisk,
+	}: {
+		deleteFromDisk: boolean;
+	}) => {
 		closeProject.mutate({ id: projectId, deleteFromDisk });
 	};
 

@@ -117,7 +117,9 @@ function BaseBranchSelector({ worktreePath }: { worktreePath: string }) {
 								<span className="truncate">
 									{branch}
 									{branch === branchData?.defaultBranch && (
-										<span className="ml-1 text-muted-foreground">(default)</span>
+										<span className="ml-1 text-muted-foreground">
+											(default)
+										</span>
 									)}
 								</span>
 								{branch === effectiveBaseBranch && (

@@ -560,7 +560,7 @@ export const createCreateProcedures = () => {
 
 				const branch = project.isGitless
 					? ""
-					: (input.branch || (await getCurrentBranch(project.mainRepoPath)));
+					: input.branch || (await getCurrentBranch(project.mainRepoPath));
 				if (!project.isGitless && !branch) {
 					throw new Error("Could not determine current branch");
 				}

@@ -325,8 +325,7 @@ function ProjectPage() {
 									"Worktrees are isolated task environments backed by git worktrees."}
 								{step === "setup" && (
 									<>
-										These commands run automatically when a worktree is
-										created.{" "}
+										These commands run automatically when a worktree is created.{" "}
 										<a
 											href="https://docs.superset.sh/setup-teardown-scripts"
 											target="_blank"

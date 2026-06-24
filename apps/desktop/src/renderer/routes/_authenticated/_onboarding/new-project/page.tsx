@@ -14,7 +14,7 @@ import {
 import { electronTrpc } from "renderer/lib/electron-trpc";
 import { CloneRepoTab } from "./components/CloneRepoTab";
 import { EmptyRepoTab } from "./components/EmptyRepoTab";
-import { MultiRepoTab } from "./components/MultiRepoTab";
+import { type MultiRepoStep, MultiRepoTab } from "./components/MultiRepoTab";
 import { OpenFolderTab } from "./components/OpenFolderTab";
 import type { NewProjectMode } from "./constants";
 
@@ -60,6 +60,13 @@ function NewProjectPage() {
 	const [mode, setMode] = useState<NewProjectMode>("clone");
 	const [error, setError] = useState<string | null>(null);
 	const [isCreating, setIsCreating] = useState(false);
+	const [multiRepoStep, setMultiRepoStep] =
+		useState<MultiRepoStep>("configure");
+
+	// Once the multi-repo flow moves past its first step (to repo selection),
+	// hide the project-type selector so the user stays focused on that step.
+	const inMultiRepoSubStep =
+		mode === "multi-repo" && multiRepoStep !== "configure";
 
 	const { data: projectsRootDir, isLoading: isRootLoading } =
 		electronTrpc.settings.getProjectsRootDir.useQuery();
@@ -118,7 +125,7 @@ function NewProjectPage() {
 								</div>
 							))}
 
-						{!isCreating && (
+						{!isCreating && !inMultiRepoSubStep && (
 							<div className="grid grid-cols-2 gap-3">
 								{OPTIONS.map((option) => {
 									const selected = mode === option.mode;
@@ -175,6 +182,7 @@ function NewProjectPage() {
 							<MultiRepoTab
 								onError={setError}
 								onCreatingChange={setIsCreating}
+								onStepChange={setMultiRepoStep}
 								parentDir={projectsDir ?? ""}
 								disabled={!projectsRootDir}
 							/>

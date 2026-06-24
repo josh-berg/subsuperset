@@ -28,6 +28,7 @@ const SECTION_ORDER: SettingsSection[] = [
 	"keyboard",
 	"behavior",
 	"git",
+	"repo-groups",
 	"terminal",
 	"models",
 	"permissions",
@@ -38,6 +39,7 @@ function getSectionFromPath(pathname: string): SettingsSection | null {
 	if (pathname.includes("/settings/ringtones")) return "ringtones";
 	if (pathname.includes("/settings/keyboard")) return "keyboard";
 	if (pathname.includes("/settings/behavior")) return "behavior";
+	if (pathname.includes("/settings/repo-groups")) return "repo-groups";
 	if (pathname.includes("/settings/git")) return "git";
 	if (pathname.includes("/settings/terminal")) return "terminal";
 	if (pathname.includes("/settings/models")) return "models";
@@ -58,6 +60,8 @@ function getPathFromSection(section: SettingsSection): string {
 			return "/settings/behavior";
 		case "git":
 			return "/settings/git";
+		case "repo-groups":
+			return "/settings/repo-groups";
 		case "terminal":
 			return "/settings/terminal";
 		case "models":

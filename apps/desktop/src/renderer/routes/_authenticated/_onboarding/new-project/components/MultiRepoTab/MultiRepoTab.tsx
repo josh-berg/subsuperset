@@ -3,12 +3,15 @@ import { Input } from "@superset/ui/input";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
+	LuBookmark,
 	LuCheck,
 	LuGitBranch,
+	LuLayers,
 	LuLoader,
 	LuPlus,
 	LuRefreshCw,
 	LuSearch,
+	LuSettings,
 	LuX,
 } from "react-icons/lu";
 import { electronTrpc } from "renderer/lib/electron-trpc";
@@ -22,30 +25,49 @@ interface RepoSelection {
 	parentBranch: string;
 }
 
+export type MultiRepoStep = "configure" | "select-repos" | "creating";
+
 interface MultiRepoTabProps {
 	onError: (error: string) => void;
 	onCreatingChange?: (isCreating: boolean) => void;
+	onStepChange?: (step: MultiRepoStep) => void;
 	parentDir: string;
 	disabled?: boolean;
 }
 
-type Step = "configure" | "select-repos" | "creating";
-
-export function MultiRepoTab({ onError, onCreatingChange, parentDir, disabled }: MultiRepoTabProps) {
+export function MultiRepoTab({
+	onError,
+	onCreatingChange,
+	onStepChange,
+	parentDir,
+	disabled,
+}: MultiRepoTabProps) {
 	const navigate = useNavigate();
 	const utils = electronTrpc.useUtils();
 
-	const [step, setStep] = useState<Step>("configure");
+	const [step, setStep] = useState<MultiRepoStep>("configure");
 	const [projectName, setProjectName] = useState("");
 	const [branchName, setBranchName] = useState("");
 	const [repoSearch, setRepoSearch] = useState("");
 	const [selectedRepos, setSelectedRepos] = useState<RepoSelection[]>([]);
 	const [addingRepoIndex, setAddingRepoIndex] = useState<number | null>(null);
 	const [creationDone, setCreationDone] = useState(false);
+	const [savingGroup, setSavingGroup] = useState(false);
+	const [newGroupName, setNewGroupName] = useState("");
 
 	const createFeatureProject =
 		electronTrpc.featureProjects.create.useMutation();
 	const addRepo = electronTrpc.featureProjects.addRepo.useMutation();
+
+	const { data: repoGroups = [] } = electronTrpc.repoGroups.list.useQuery();
+	const createRepoGroup = electronTrpc.repoGroups.create.useMutation({
+		onSuccess: async () => {
+			await utils.repoGroups.list.invalidate();
+			setSavingGroup(false);
+			setNewGroupName("");
+		},
+		onError: (err) => onError(err.message),
+	});
 
 	const { data: cacheStatus } =
 		electronTrpc.featureProjects.getRepoCacheStatus.useQuery(undefined, {
@@ -65,6 +87,12 @@ export function MultiRepoTab({ onError, onCreatingChange, parentDir, disabled }:
 		},
 		onError: (err) => onError(err.message),
 	});
+
+	// Let the parent react to the current step (e.g. hide the project-type
+	// selector once the user has moved on to picking repos).
+	useEffect(() => {
+		onStepChange?.(step);
+	}, [step, onStepChange]);
 
 	// Auto-sync when the select-repos step is first shown and cache is empty
 	useEffect(() => {
@@ -99,6 +127,38 @@ export function MultiRepoTab({ onError, onCreatingChange, parentDir, disabled }:
 				r.fullName === fullName ? { ...r, parentBranch: value } : r,
 			),
 		);
+	};
+
+	/** Merge a saved group's repos into the current selection, skipping dupes. */
+	const applyGroup = (repos: string[]) => {
+		setSelectedRepos((prev) => {
+			const existing = new Set(prev.map((r) => r.fullName));
+			const additions = repos
+				.filter((fullName) => !existing.has(fullName))
+				.map((fullName) => ({
+					fullName,
+					name: fullName.split("/")[1] ?? fullName,
+					description: null,
+					isPrivate: false,
+					parentBranch: "",
+				}));
+			return [...prev, ...additions];
+		});
+	};
+
+	const handleSaveGroup = () => {
+		if (!newGroupName.trim()) {
+			onError("Please enter a group name");
+			return;
+		}
+		if (selectedRepos.length === 0) {
+			onError("Select at least one repo to save as a group");
+			return;
+		}
+		createRepoGroup.mutate({
+			name: newGroupName.trim(),
+			repos: selectedRepos.map((r) => r.fullName),
+		});
 	};
 
 	const handleConfigure = () => {
@@ -225,6 +285,48 @@ export function MultiRepoTab({ onError, onCreatingChange, parentDir, disabled }:
 
 		return (
 			<div className="flex flex-col gap-5">
+				<div className="flex flex-col gap-2">
+					<div className="flex items-center justify-between">
+						<span className="text-sm font-medium text-foreground flex items-center gap-1.5">
+							<LuLayers className="size-3.5 text-muted-foreground" />
+							Repo groups
+						</span>
+						<button
+							type="button"
+							onClick={() => navigate({ to: "/settings/repo-groups" })}
+							className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+							title="Manage repo groups in settings"
+						>
+							<LuSettings className="size-3" />
+							Manage
+						</button>
+					</div>
+					{repoGroups.length === 0 ? (
+						<p className="text-xs text-muted-foreground">
+							No saved groups yet. Create one in settings to quickly add a set
+							of repos.
+						</p>
+					) : (
+						<div className="flex flex-wrap gap-1.5">
+							{repoGroups.map((group) => (
+								<button
+									key={group.id}
+									type="button"
+									onClick={() => applyGroup(group.repos)}
+									className="flex items-center gap-1.5 rounded-full border border-border/60 px-2.5 py-1 text-xs hover:bg-accent/50 transition-colors"
+									title={group.repos.join("\n")}
+								>
+									<LuPlus className="size-3 text-muted-foreground" />
+									<span>{group.name}</span>
+									<span className="text-muted-foreground/60">
+										{group.repos.length}
+									</span>
+								</button>
+							))}
+						</div>
+					)}
+				</div>
+
 				<div className="flex flex-col gap-1.5">
 					<div className="flex items-center justify-between">
 						<label
@@ -322,9 +424,41 @@ export function MultiRepoTab({ onError, onCreatingChange, parentDir, disabled }:
 
 				{selectedRepos.length > 0 && (
 					<div className="flex flex-col gap-2">
-						<p className="text-sm font-medium text-foreground">
-							Selected ({selectedRepos.length})
-						</p>
+						<div className="flex items-center justify-between">
+							<p className="text-sm font-medium text-foreground">
+								Selected ({selectedRepos.length})
+							</p>
+							<button
+								type="button"
+								onClick={() => setSavingGroup((s) => !s)}
+								className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+							>
+								<LuBookmark className="size-3" />
+								Save as group
+							</button>
+						</div>
+						{savingGroup && (
+							<div className="flex items-center gap-2">
+								<Input
+									value={newGroupName}
+									onChange={(e) => setNewGroupName(e.target.value)}
+									placeholder="Group name"
+									className="h-8 text-sm"
+									autoFocus
+									onKeyDown={(e) => {
+										if (e.key === "Enter") handleSaveGroup();
+										if (e.key === "Escape") setSavingGroup(false);
+									}}
+								/>
+								<Button
+									size="sm"
+									onClick={handleSaveGroup}
+									disabled={createRepoGroup.isPending}
+								>
+									{createRepoGroup.isPending ? "Saving…" : "Save"}
+								</Button>
+							</div>
+						)}
 						{selectedRepos.map((repo) => (
 							<div
 								key={repo.fullName}

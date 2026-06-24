@@ -1741,7 +1741,10 @@ export const createProjectsRouter = (getWindow: () => BrowserWindow | null) => {
 
 		close: publicProcedure
 			.input(
-				z.object({ id: z.string(), deleteFromDisk: z.boolean().default(false) }),
+				z.object({
+					id: z.string(),
+					deleteFromDisk: z.boolean().default(false),
+				}),
 			)
 			.mutation(async ({ input }) => {
 				const project = localDb

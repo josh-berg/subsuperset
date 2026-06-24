@@ -309,6 +309,13 @@
       "when": 1779118027476,
       "tag": "0043_wandering_fat_cobra",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "6",
+      "when": 1782314743232,
+      "tag": "0044_dapper_king_cobra",
+      "breakpoints": true
     }
   ]
 }
