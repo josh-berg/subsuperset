@@ -64,13 +64,10 @@ function NewProjectPage() {
 	const { data: projectsRootDir, isLoading: isRootLoading } =
 		electronTrpc.settings.getProjectsRootDir.useQuery();
 
-	const reposDir =
-		projectsRootDir ? `${projectsRootDir}/repos` : null;
-	const projectsDir =
-		projectsRootDir ? `${projectsRootDir}/projects` : null;
+	const reposDir = projectsRootDir ? `${projectsRootDir}/repos` : null;
+	const projectsDir = projectsRootDir ? `${projectsRootDir}/projects` : null;
 
-	const activeDir =
-		mode === "multi-repo" ? projectsDir : reposDir;
+	const activeDir = mode === "multi-repo" ? projectsDir : reposDir;
 
 	return (
 		<div className="flex flex-col h-full w-full relative overflow-hidden bg-background">
@@ -83,14 +80,16 @@ function NewProjectPage() {
 				</Button>
 			</div>
 
-			<div className="relative flex flex-1 items-center justify-center">
-				<div className="flex flex-col items-center w-full max-w-xl px-6">
-					<div className="w-full flex flex-col gap-5">
+			<div className="relative flex-1 overflow-y-auto">
+				<div className="flex min-h-full items-center justify-center px-6 py-16">
+					<div className="w-full max-w-xl flex flex-col gap-5">
 						<h1 className="text-lg font-medium text-foreground">New Project</h1>
 
 						{/* Storage location row (hidden for open-folder which uses its own path, or while creating) */}
-						{mode !== "open-folder" && !isRootLoading && !isCreating && (
-							projectsRootDir ? (
+						{mode !== "open-folder" &&
+							!isRootLoading &&
+							!isCreating &&
+							(projectsRootDir ? (
 								<div className="flex items-center gap-2 text-xs text-muted-foreground">
 									<span>Saving to</span>
 									<code className="bg-muted px-1.5 py-0.5 rounded text-foreground">
@@ -117,45 +116,46 @@ function NewProjectPage() {
 										Open Settings
 									</Link>
 								</div>
-							)
-						)}
+							))}
 
-						{!isCreating && <div className="grid grid-cols-2 gap-3">
-							{OPTIONS.map((option) => {
-								const selected = mode === option.mode;
-								return (
-									<button
-										key={option.mode}
-										type="button"
-										onClick={() => {
-											setMode(option.mode);
-											setError(null);
-										}}
-										className={cn(
-											"flex flex-col items-center gap-3 rounded-lg border p-4 pt-5 text-center transition-all",
-											selected
-												? "border-primary/50 bg-primary/5"
-												: "border-border/50 hover:border-border hover:bg-accent/30",
-										)}
-									>
-										<option.icon
+						{!isCreating && (
+							<div className="grid grid-cols-2 gap-3">
+								{OPTIONS.map((option) => {
+									const selected = mode === option.mode;
+									return (
+										<button
+											key={option.mode}
+											type="button"
+											onClick={() => {
+												setMode(option.mode);
+												setError(null);
+											}}
 											className={cn(
-												"size-6",
-												selected ? "text-primary" : "text-muted-foreground",
+												"flex flex-col items-center gap-3 rounded-lg border p-4 pt-5 text-center transition-all",
+												selected
+													? "border-primary/50 bg-primary/5"
+													: "border-border/50 hover:border-border hover:bg-accent/30",
 											)}
-										/>
-										<div>
-											<div className="text-sm font-medium text-foreground">
-												{option.label}
+										>
+											<option.icon
+												className={cn(
+													"size-6",
+													selected ? "text-primary" : "text-muted-foreground",
+												)}
+											/>
+											<div>
+												<div className="text-sm font-medium text-foreground">
+													{option.label}
+												</div>
+												<div className="text-xs text-muted-foreground mt-0.5">
+													{option.description}
+												</div>
 											</div>
-											<div className="text-xs text-muted-foreground mt-0.5">
-												{option.description}
-											</div>
-										</div>
-									</button>
-								);
-							})}
-						</div>}
+										</button>
+									);
+								})}
+							</div>
+						)}
 
 						{mode === "empty" && (
 							<EmptyRepoTab
@@ -179,9 +179,7 @@ function NewProjectPage() {
 								disabled={!projectsRootDir}
 							/>
 						)}
-						{mode === "open-folder" && (
-							<OpenFolderTab onError={setError} />
-						)}
+						{mode === "open-folder" && <OpenFolderTab onError={setError} />}
 
 						{error && (
 							<div className="w-full flex items-start gap-2 rounded-md px-4 py-3 bg-destructive/10 border border-destructive/20">
