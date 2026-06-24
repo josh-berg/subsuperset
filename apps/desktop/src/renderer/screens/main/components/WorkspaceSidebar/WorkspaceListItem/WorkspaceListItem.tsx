@@ -20,6 +20,7 @@ import { useTabsStore } from "renderer/stores/tabs/store";
 import { extractPaneIdsFromLayout } from "renderer/stores/tabs/utils";
 import { useWorkspaceSelectionStore } from "renderer/stores/workspace-selection";
 import { getHighestPriorityStatus } from "shared/tabs-types";
+import { RunningTabCounts } from "../RunningTabCounts";
 import { CollapsedWorkspaceItem } from "./CollapsedWorkspaceItem";
 import { DeleteWorkspaceDialog, SwitchBranchDialog } from "./components";
 import {
@@ -414,6 +415,8 @@ export function WorkspaceListItem({
 										name ??
 										branch)}
 							</span>
+
+							<RunningTabCounts workspaceIds={[id]} />
 
 							{isBranchWorkspace && aheadBehind && (
 								<WorkspaceAheadBehind

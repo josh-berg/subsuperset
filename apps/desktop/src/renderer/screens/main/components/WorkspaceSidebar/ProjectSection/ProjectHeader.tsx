@@ -31,6 +31,7 @@ import { navigateToWorkspace } from "renderer/routes/_authenticated/_dashboard/u
 import { useProjectRename } from "renderer/screens/main/hooks/useProjectRename";
 import { STROKE_WIDTH } from "../constants";
 import { RenameInput } from "../RenameInput";
+import { RunningTabCounts } from "../RunningTabCounts";
 import { CloseProjectDialog } from "./CloseProjectDialog";
 import { ProjectThumbnail } from "./ProjectThumbnail";
 
@@ -51,6 +52,8 @@ interface ProjectHeaderProps {
 	isSidebarCollapsed?: boolean;
 	onToggleCollapse: () => void;
 	workspaceCount: number;
+	/** All workspace ids in this project, for aggregate running-tab counts. */
+	workspaceIds: string[];
 	onNewWorkspace: () => void;
 }
 
@@ -69,6 +72,7 @@ export function ProjectHeader({
 	isSidebarCollapsed = false,
 	onToggleCollapse,
 	workspaceCount,
+	workspaceIds,
 	onNewWorkspace,
 }: ProjectHeaderProps) {
 	const utils = electronTrpc.useUtils();
@@ -218,6 +222,7 @@ export function ProjectHeader({
 							<span className="text-xs text-muted-foreground">
 								{workspaceCount} workspace{workspaceCount !== 1 ? "s" : ""}
 							</span>
+							<RunningTabCounts workspaceIds={workspaceIds} />
 						</TooltipContent>
 					</Tooltip>
 					<ContextMenuContent>
@@ -325,6 +330,8 @@ export function ProjectHeader({
 								</span>
 							</button>
 						)}
+
+						<RunningTabCounts workspaceIds={workspaceIds} className="ml-1" />
 
 						{!isGitless && (
 							<Tooltip delayDuration={500}>

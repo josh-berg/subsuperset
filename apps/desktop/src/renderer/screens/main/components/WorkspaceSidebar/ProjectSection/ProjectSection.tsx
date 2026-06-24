@@ -103,6 +103,13 @@ export function ProjectSection({
 	const totalWorkspaceCount =
 		workspaces.length +
 		sections.reduce((sum, s) => sum + s.workspaces.length, 0);
+	const allWorkspaceIds = useMemo(
+		() => [
+			...workspaces.map((w) => w.id),
+			...sections.flatMap((s) => s.workspaces.map((w) => w.id)),
+		],
+		[workspaces, sections],
+	);
 
 	const { orderedWorkspaceIds, topLevelChildren } = useMemo(() => {
 		const topLevelWorkspacesById = new Map(
@@ -274,6 +281,7 @@ export function ProjectSection({
 						isSidebarCollapsed={isSidebarCollapsed}
 						onToggleCollapse={() => toggleProjectCollapsed(projectId)}
 						workspaceCount={totalWorkspaceCount}
+						workspaceIds={allWorkspaceIds}
 						onNewWorkspace={handleNewWorkspace}
 					/>
 				</div>
@@ -395,6 +403,7 @@ export function ProjectSection({
 					isSidebarCollapsed={isSidebarCollapsed}
 					onToggleCollapse={() => toggleProjectCollapsed(projectId)}
 					workspaceCount={totalWorkspaceCount}
+					workspaceIds={allWorkspaceIds}
 					onNewWorkspace={handleNewWorkspace}
 				/>
 			</div>
