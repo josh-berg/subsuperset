@@ -88,12 +88,6 @@ export function MultiRepoTab({
 		onError: (err) => onError(err.message),
 	});
 
-	// Let the parent react to the current step (e.g. hide the project-type
-	// selector once the user has moved on to picking repos).
-	useEffect(() => {
-		onStepChange?.(step);
-	}, [step, onStepChange]);
-
 	// Auto-sync when the select-repos step is first shown and cache is empty
 	useEffect(() => {
 		if (step === "select-repos" && cacheStatus?.count === 0) {
@@ -171,6 +165,7 @@ export function MultiRepoTab({
 			return;
 		}
 		setStep("select-repos");
+		onStepChange?.("select-repos");
 	};
 
 	const handleCreate = async () => {
@@ -180,6 +175,7 @@ export function MultiRepoTab({
 		}
 
 		setStep("creating");
+		onStepChange?.("creating");
 		onCreatingChange?.(true);
 
 		try {
@@ -218,6 +214,7 @@ export function MultiRepoTab({
 			}, 800);
 		} catch (err) {
 			setStep("select-repos");
+			onStepChange?.("select-repos");
 			setAddingRepoIndex(null);
 			onCreatingChange?.(false);
 			onError(err instanceof Error ? err.message : "Failed to create project");
@@ -494,7 +491,10 @@ export function MultiRepoTab({
 					<Button
 						variant="ghost"
 						size="sm"
-						onClick={() => setStep("configure")}
+						onClick={() => {
+							setStep("configure");
+							onStepChange?.("configure");
+						}}
 					>
 						Back
 					</Button>
