@@ -2,8 +2,11 @@ import { cn } from "@superset/ui/utils";
 import { useMatchRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { LuGitBranch } from "react-icons/lu";
+import { electronTrpc } from "renderer/lib/electron-trpc";
 import { navigateToWorkspace } from "renderer/routes/_authenticated/_dashboard/utils/workspace-navigation";
 import { SwitchBranchDialog } from "../WorkspaceListItem/components/SwitchBranchDialog";
+import { GITHUB_STATUS_STALE_TIME } from "../WorkspaceListItem/constants";
+import { WorkspaceAheadBehind } from "../WorkspaceListItem/WorkspaceAheadBehind";
 
 interface ChildRepoItemProps {
 	workspaceId: string | null;
@@ -24,6 +27,12 @@ export function ChildRepoItem({
 	const matchRoute = useMatchRoute();
 	const [showSwitchBranchDialog, setShowSwitchBranchDialog] = useState(false);
 
+	const { data: aheadBehind } = electronTrpc.workspaces.getAheadBehind.useQuery(
+		{ workspaceId: workspaceId ?? "" },
+		{ enabled: !!workspaceId, staleTime: GITHUB_STATUS_STALE_TIME },
+	);
+	const isBehind = (aheadBehind?.behind ?? 0) > 0;
+
 	const isActive =
 		!!workspaceId &&
 		!!matchRoute({
@@ -43,9 +52,9 @@ export function ChildRepoItem({
 				type="button"
 				onClick={handleClick}
 				disabled={!workspaceId}
-				title={`${name}: ${branch}`}
+				title={`${name}: ${branch}${isBehind ? ` (↓${aheadBehind?.behind})` : ""}`}
 				className={cn(
-					"flex items-center justify-center size-8 rounded-md transition-colors",
+					"relative flex items-center justify-center size-8 rounded-md transition-colors",
 					isActive
 						? "bg-primary/10 text-primary"
 						: "text-muted-foreground hover:text-foreground hover:bg-accent/50",
@@ -53,6 +62,9 @@ export function ChildRepoItem({
 				)}
 			>
 				<LuGitBranch className="size-3.5" />
+				{isBehind && (
+					<span className="absolute top-1 right-1 size-1.5 rounded-full bg-amber-400" />
+				)}
 			</button>
 		);
 	}
@@ -73,6 +85,12 @@ export function ChildRepoItem({
 			>
 				<LuGitBranch className="size-3.5 shrink-0 opacity-60" />
 				<span className="flex-1 text-xs font-medium truncate">{name}</span>
+				{aheadBehind && (
+					<WorkspaceAheadBehind
+						ahead={aheadBehind.ahead}
+						behind={aheadBehind.behind}
+					/>
+				)}
 				{branch && workspaceId && (
 					<span
 						role="button"

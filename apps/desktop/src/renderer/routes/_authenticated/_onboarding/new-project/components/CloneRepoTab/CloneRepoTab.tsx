@@ -47,7 +47,7 @@ export function CloneRepoTab({
 		if (cacheStatus?.count === 0) {
 			syncCache.mutate();
 		}
-	}, [cacheStatus?.count === 0]); // eslint-disable-line react-hooks/exhaustive-deps
+	}, [cacheStatus?.count, syncCache.mutate]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	const handleRepoSelect = (repo: { fullName: string; url: string }) => {
 		setUrl(repo.url);

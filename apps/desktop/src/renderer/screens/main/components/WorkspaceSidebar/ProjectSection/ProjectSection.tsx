@@ -111,6 +111,19 @@ export function ProjectSection({
 		[workspaces, sections],
 	);
 
+	// Workspace ids to monitor for the aggregate "needs pull" badge. Feature
+	// projects track their child repos; single-repo projects track their own
+	// workspaces.
+	const gitWorkspaceIds = useMemo(
+		() =>
+			isFeatureProject
+				? childProjects
+						.map((c) => c.workspaceId)
+						.filter((id): id is string => !!id)
+				: allWorkspaceIds,
+		[isFeatureProject, childProjects, allWorkspaceIds],
+	);
+
 	const { orderedWorkspaceIds, topLevelChildren } = useMemo(() => {
 		const topLevelWorkspacesById = new Map(
 			workspaces.map((workspace) => [workspace.id, workspace]),
@@ -282,6 +295,7 @@ export function ProjectSection({
 						onToggleCollapse={() => toggleProjectCollapsed(projectId)}
 						workspaceCount={totalWorkspaceCount}
 						workspaceIds={allWorkspaceIds}
+						gitWorkspaceIds={gitWorkspaceIds}
 						onNewWorkspace={handleNewWorkspace}
 					/>
 				</div>
@@ -404,6 +418,7 @@ export function ProjectSection({
 					onToggleCollapse={() => toggleProjectCollapsed(projectId)}
 					workspaceCount={totalWorkspaceCount}
 					workspaceIds={allWorkspaceIds}
+					gitWorkspaceIds={gitWorkspaceIds}
 					onNewWorkspace={handleNewWorkspace}
 				/>
 			</div>

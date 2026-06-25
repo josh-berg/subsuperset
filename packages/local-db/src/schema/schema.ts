@@ -128,6 +128,9 @@ export const workspaces = sqliteTable(
 		lastOpenedAt: integer("last_opened_at")
 			.notNull()
 			.$defaultFn(() => Date.now()),
+		// Unix ms timestamp of the last successful background `git fetch` for this
+		// workspace's repo. Null means never fetched. Used to throttle auto-fetch.
+		lastFetchedAt: integer("last_fetched_at"),
 		isUnread: integer("is_unread", { mode: "boolean" }).default(false),
 		// Whether the workspace has an auto-generated name (branch name) that should prompt for rename
 		isUnnamed: integer("is_unnamed", { mode: "boolean" }).default(false),

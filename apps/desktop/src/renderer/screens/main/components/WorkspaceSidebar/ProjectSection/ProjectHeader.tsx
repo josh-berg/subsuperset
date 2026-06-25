@@ -54,6 +54,12 @@ interface ProjectHeaderProps {
 	workspaceCount: number;
 	/** All workspace ids in this project, for aggregate running-tab counts. */
 	workspaceIds: string[];
+	/**
+	 * Git-backed workspace ids to monitor for an aggregate "needs pull" badge.
+	 * For feature projects these are the child repo workspaces; for single-repo
+	 * projects they are the project's own workspaces.
+	 */
+	gitWorkspaceIds: string[];
 	onNewWorkspace: () => void;
 }
 
@@ -73,9 +79,24 @@ export function ProjectHeader({
 	onToggleCollapse,
 	workspaceCount,
 	workspaceIds,
+	gitWorkspaceIds,
 	onNewWorkspace,
 }: ProjectHeaderProps) {
 	const utils = electronTrpc.useUtils();
+
+	// Show the aggregate badge for feature projects always, and for single-repo
+	// projects only while collapsed (expanded, the per-workspace rows show it).
+	const behindBadgeEnabled =
+		gitWorkspaceIds.length > 0 && (isFeatureProject || isCollapsed);
+	const { data: aheadBehindBatch } =
+		electronTrpc.workspaces.getAheadBehindBatch.useQuery(
+			{ workspaceIds: gitWorkspaceIds },
+			{ enabled: behindBadgeEnabled },
+		);
+	const reposBehind = aheadBehindBatch
+		? Object.values(aheadBehindBatch).filter((c) => c.behind > 0).length
+		: 0;
+	const showBehindBadge = behindBadgeEnabled && reposBehind > 0;
 	const navigate = useNavigate();
 	const params = useParams({ strict: false }) as { workspaceId?: string };
 	const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
@@ -200,7 +221,7 @@ export function ProjectHeader({
 									type="button"
 									onClick={onToggleCollapse}
 									className={cn(
-										"flex items-center justify-center size-8 rounded-md",
+										"relative flex items-center justify-center size-8 rounded-md",
 										"hover:bg-muted/50 transition-colors",
 									)}
 								>
@@ -214,6 +235,9 @@ export function ProjectHeader({
 										hideImage={hideImage}
 										isFeatureProject={isFeatureProject}
 									/>
+									{showBehindBadge && (
+										<span className="absolute top-0 right-0 size-2 rounded-full bg-amber-400 ring-2 ring-background" />
+									)}
 								</button>
 							</TooltipTrigger>
 						</ContextMenuTrigger>
@@ -222,6 +246,12 @@ export function ProjectHeader({
 							<span className="text-xs text-muted-foreground">
 								{workspaceCount} workspace{workspaceCount !== 1 ? "s" : ""}
 							</span>
+							{showBehindBadge && (
+								<span className="text-xs text-amber-400">
+									{reposBehind} {isFeatureProject ? "repo" : "workspace"}
+									{reposBehind === 1 ? "" : "s"} behind remote
+								</span>
+							)}
 							<RunningTabCounts workspaceIds={workspaceIds} />
 						</TooltipContent>
 					</Tooltip>
@@ -329,6 +359,21 @@ export function ProjectHeader({
 									({workspaceCount})
 								</span>
 							</button>
+						)}
+
+						{showBehindBadge && (
+							<Tooltip delayDuration={300}>
+								<TooltipTrigger asChild>
+									<span className="flex items-center gap-1 ml-1 text-[11px] font-mono text-amber-400/75 tabular-nums shrink-0">
+										<span className="size-1.5 rounded-full bg-amber-400/75" />
+										{reposBehind}
+									</span>
+								</TooltipTrigger>
+								<TooltipContent side="bottom" sideOffset={4}>
+									{reposBehind} {isFeatureProject ? "repo" : "workspace"}
+									{reposBehind === 1 ? "" : "s"} behind remote
+								</TooltipContent>
+							</Tooltip>
 						)}
 
 						<RunningTabCounts workspaceIds={workspaceIds} className="ml-1" />

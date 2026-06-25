@@ -4,6 +4,7 @@ import { HiChevronRight } from "react-icons/hi2";
 import { useWorkspaceShortcuts } from "renderer/hooks/useWorkspaceShortcuts";
 import { useWorkspaceSelectionStore } from "renderer/stores/workspace-selection";
 import { useWorkspaceSidebarStore } from "renderer/stores/workspace-sidebar-state";
+import { useAutoFetchBranches } from "../../hooks/useAutoFetchBranches";
 import { MultiDragPreview } from "./MultiDragPreview";
 import { PortsList } from "./PortsList";
 import { ProjectSection } from "./ProjectSection";
@@ -23,6 +24,7 @@ export function WorkspaceSidebar({
 	activeProjectName,
 }: WorkspaceSidebarProps) {
 	const { groups } = useWorkspaceShortcuts();
+	useAutoFetchBranches();
 	const clearSelection = useWorkspaceSelectionStore((s) => s.clearSelection);
 	const collapsedCategoryKeys = useWorkspaceSidebarStore(
 		(s) => s.collapsedCategoryKeys,

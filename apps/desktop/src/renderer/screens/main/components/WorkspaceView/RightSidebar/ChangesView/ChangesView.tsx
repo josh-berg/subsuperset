@@ -131,6 +131,21 @@ export function ChangesView({
 			},
 		});
 
+	const discardAllStagedMutation =
+		electronTrpc.changes.discardAllStaged.useMutation({
+			onError: (error) => {
+				toast.error(`Failed to discard staged changes: ${error.message}`);
+			},
+		});
+
+	const discardAllUnstagedMutation =
+		electronTrpc.changes.discardAllUnstaged.useMutation({
+			onSuccess: () => refetch(),
+			onError: (error) => {
+				toast.error(`Failed to discard unstaged changes: ${error.message}`);
+			},
+		});
+
 	const activePullRequest = githubStatus?.pr ?? null;
 	const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const pendingRefreshRef = useRef<PendingChangesRefresh>({
@@ -147,6 +162,20 @@ export function ChangesView({
 	const handleRefresh = () => {
 		refetch();
 		refetchGithubStatus();
+	};
+
+	const handleDiscardAll = () => {
+		if (!worktreePath) return;
+		// Unstage everything and discard tracked file changes first,
+		// then clean up untracked files.
+		discardAllStagedMutation.mutate(
+			{ worktreePath },
+			{
+				onSuccess: () => {
+					discardAllUnstagedMutation.mutate({ worktreePath });
+				},
+			},
+		);
 	};
 
 	const handleDiscard = (file: ChangedFile) => {
@@ -465,6 +494,8 @@ export function ChangesView({
 				>
 					<ChangesHeader
 						onRefresh={handleRefresh}
+						onDiscardAll={handleDiscardAll}
+						hasChanges={hasChanges}
 						viewMode={fileListViewMode}
 						onViewModeChange={setFileListViewMode}
 						showViewModeToggle

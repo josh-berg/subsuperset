@@ -10,9 +10,15 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@superset/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@superset/ui/tooltip";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { VscCheck, VscRefresh, VscSourceControl } from "react-icons/vsc";
+import {
+	VscCheck,
+	VscDiscard,
+	VscRefresh,
+	VscSourceControl,
+} from "react-icons/vsc";
 import { electronTrpc } from "renderer/lib/electron-trpc";
 import type { ChangesViewMode } from "../../types";
+import { DiscardConfirmDialog } from "../DiscardConfirmDialog";
 import { ViewModeToggle } from "../ViewModeToggle";
 import { PRButton } from "./components/PRButton";
 
@@ -20,6 +26,8 @@ const BRANCH_QUERY_STALE_TIME_MS = 10_000;
 
 interface ChangesHeaderProps {
 	onRefresh: () => void;
+	onDiscardAll: () => void;
+	hasChanges: boolean;
 	viewMode: ChangesViewMode;
 	onViewModeChange: (mode: ChangesViewMode) => void;
 	showViewModeToggle?: boolean;
@@ -173,8 +181,52 @@ function RefreshButton({ onRefresh }: { onRefresh: () => void }) {
 	);
 }
 
+function DiscardAllButton({
+	onDiscardAll,
+	hasChanges,
+}: {
+	onDiscardAll: () => void;
+	hasChanges: boolean;
+}) {
+	const [showDialog, setShowDialog] = useState(false);
+
+	return (
+		<>
+			<Tooltip>
+				<TooltipTrigger asChild>
+					<Button
+						variant="ghost"
+						size="icon"
+						onClick={() => setShowDialog(true)}
+						disabled={!hasChanges}
+						className="size-6 p-0"
+					>
+						<VscDiscard className="size-3.5" />
+					</Button>
+				</TooltipTrigger>
+				<TooltipContent side="top" showArrow={false}>
+					Discard all changes
+				</TooltipContent>
+			</Tooltip>
+			<DiscardConfirmDialog
+				open={showDialog}
+				onOpenChange={setShowDialog}
+				title="Discard all changes?"
+				description="This will permanently discard all staged and unstaged changes. Untracked files will be deleted. This cannot be undone."
+				confirmLabel="Discard all"
+				onConfirm={() => {
+					setShowDialog(false);
+					onDiscardAll();
+				}}
+			/>
+		</>
+	);
+}
+
 export function ChangesHeader({
 	onRefresh,
+	onDiscardAll,
+	hasChanges,
 	viewMode,
 	onViewModeChange,
 	showViewModeToggle = true,
@@ -194,6 +246,7 @@ export function ChangesHeader({
 				/>
 			)}
 			<RefreshButton onRefresh={onRefresh} />
+			<DiscardAllButton onDiscardAll={onDiscardAll} hasChanges={hasChanges} />
 			<PRButton
 				pr={pr}
 				isLoading={isPRStatusLoading}

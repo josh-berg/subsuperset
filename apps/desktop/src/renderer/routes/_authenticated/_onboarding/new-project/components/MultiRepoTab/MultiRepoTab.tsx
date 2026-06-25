@@ -99,7 +99,7 @@ export function MultiRepoTab({
 		if (step === "select-repos" && cacheStatus?.count === 0) {
 			syncCache.mutate();
 		}
-	}, [step, cacheStatus?.count === 0]); // eslint-disable-line react-hooks/exhaustive-deps
+	}, [step, cacheStatus?.count, syncCache.mutate]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	const isSyncing = syncCache.isPending;
 

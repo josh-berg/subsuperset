@@ -1,7 +1,11 @@
 import { existsSync } from "node:fs";
-import type { GitHubStatus } from "@superset/local-db";
-import { workspaces, worktrees } from "@superset/local-db";
-import { and, eq, isNull } from "drizzle-orm";
+import type {
+	GitHubStatus,
+	SelectProject,
+	SelectWorkspace,
+} from "@superset/local-db";
+import { projects, workspaces, worktrees } from "@superset/local-db";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { localDb } from "main/lib/local-db";
 import { z } from "zod";
 import { publicProcedure, router } from "../../..";
@@ -13,11 +17,16 @@ import {
 } from "../utils/db-helpers";
 import {
 	fetchDefaultBranch,
+	fetchRemote,
 	getAheadBehindCount,
 	getDefaultBranch,
 	listExternalWorktrees,
 	refreshDefaultBranch,
 } from "../utils/git";
+
+/** Default staleness window for background auto-fetch: 10 minutes. */
+const AUTO_FETCH_STALE_MS = 10 * 60 * 1000;
+
 import {
 	clearGitHubCachesForWorktree,
 	fetchGitHubPRComments,
@@ -172,6 +181,100 @@ export const createGitStatusProcedures = () => {
 					repoPath: project.mainRepoPath,
 					defaultBranch: workspace.branch,
 				});
+			}),
+
+		getAheadBehindBatch: publicProcedure
+			.input(z.object({ workspaceIds: z.array(z.string()) }))
+			.query(async ({ input }) => {
+				const entries = await Promise.all(
+					input.workspaceIds.map(async (workspaceId) => {
+						const workspace = getWorkspace(workspaceId);
+						const project = workspace ? getProject(workspace.projectId) : null;
+						if (!workspace || !project) {
+							return [workspaceId, { ahead: 0, behind: 0 }] as const;
+						}
+						const counts = await getAheadBehindCount({
+							repoPath: project.mainRepoPath,
+							defaultBranch: workspace.branch,
+						});
+						return [workspaceId, counts] as const;
+					}),
+				);
+				return Object.fromEntries(entries) as Record<
+					string,
+					{ ahead: number; behind: number }
+				>;
+			}),
+
+		/**
+		 * Background auto-fetch: fetches the remote for every git-backed repo
+		 * whose workspaces haven't been fetched within `staleMs`. Fetches once
+		 * per repo (worktrees share remote-tracking refs) and stamps
+		 * `lastFetchedAt` on all of that repo's workspaces. Returns the ids of
+		 * workspaces whose repo was successfully fetched so callers can refresh
+		 * ahead/behind counts.
+		 */
+		autoFetchStaleWorkspaces: publicProcedure
+			.input(
+				z
+					.object({ staleMs: z.number().int().positive().optional() })
+					.optional(),
+			)
+			.mutation(async ({ input }) => {
+				const staleMs = input?.staleMs ?? AUTO_FETCH_STALE_MS;
+				const now = Date.now();
+				const threshold = now - staleMs;
+
+				const rows = localDb
+					.select({ workspace: workspaces, project: projects })
+					.from(workspaces)
+					.innerJoin(projects, eq(workspaces.projectId, projects.id))
+					.where(isNull(workspaces.deletingAt))
+					.all();
+
+				const byProject = new Map<
+					string,
+					{ project: SelectProject; workspaces: SelectWorkspace[] }
+				>();
+				for (const { workspace, project } of rows) {
+					if (project.isGitless) continue;
+					const entry = byProject.get(project.id);
+					if (entry) {
+						entry.workspaces.push(workspace);
+					} else {
+						byProject.set(project.id, { project, workspaces: [workspace] });
+					}
+				}
+
+				const fetchedWorkspaceIds: string[] = [];
+				for (const {
+					project,
+					workspaces: repoWorkspaces,
+				} of byProject.values()) {
+					const newestFetch = repoWorkspaces.reduce(
+						(max, w) => Math.max(max, w.lastFetchedAt ?? 0),
+						0,
+					);
+					if (newestFetch > threshold) continue;
+
+					try {
+						await fetchRemote(project.mainRepoPath);
+					} catch {
+						// Offline or no remote — leave lastFetchedAt unchanged so we
+						// retry on the next tick.
+						continue;
+					}
+
+					const ids = repoWorkspaces.map((w) => w.id);
+					localDb
+						.update(workspaces)
+						.set({ lastFetchedAt: now })
+						.where(inArray(workspaces.id, ids))
+						.run();
+					fetchedWorkspaceIds.push(...ids);
+				}
+
+				return { fetchedWorkspaceIds };
 			}),
 
 		getGitHubStatus: publicProcedure

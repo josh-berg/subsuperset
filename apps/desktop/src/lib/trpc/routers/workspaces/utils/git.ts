@@ -980,6 +980,16 @@ export async function getDefaultBranch(mainRepoPath: string): Promise<string> {
 	return "main";
 }
 
+/**
+ * Fetches all remote-tracking refs for a repository's default remote. Used by
+ * background auto-fetch to keep ahead/behind counts fresh. Prunes deleted
+ * remote branches; skips tags to keep the fetch lightweight.
+ */
+export async function fetchRemote(repoPath: string): Promise<void> {
+	const git = await getSimpleGitWithShellPath(repoPath);
+	await git.fetch(["--prune", "--no-tags"]);
+}
+
 export async function fetchDefaultBranch(
 	mainRepoPath: string,
 	defaultBranch: string,

@@ -1,5 +1,5 @@
-import { useOpenMainRepoWorkspace } from "renderer/react-query/workspaces/useOpenMainRepoWorkspace";
 import { electronTrpc } from "renderer/lib/electron-trpc";
+import { useOpenMainRepoWorkspace } from "renderer/react-query/workspaces/useOpenMainRepoWorkspace";
 
 export function useProjectCreationHandler(onError: (error: string) => void) {
 	const utils = electronTrpc.useUtils();

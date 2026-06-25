@@ -173,6 +173,7 @@ export function WorkspaceListItem({
 			{
 				enabled: isBranchWorkspace && !isGitless,
 				staleTime: GITHUB_STATUS_STALE_TIME,
+				refetchInterval: isActive ? 5_000 : false,
 			},
 		);
 
