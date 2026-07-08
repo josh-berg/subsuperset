@@ -1,8 +1,10 @@
 import { toast } from "@superset/ui/sonner";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@superset/ui/tooltip";
 import { cn } from "@superset/ui/utils";
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useDrag, useDrop } from "react-dnd";
+import { LuPlus } from "react-icons/lu";
 import { electronTrpc } from "renderer/lib/electron-trpc";
 import { useReorderProjects } from "renderer/react-query/projects";
 import { useWorkspaceSidebarStore } from "renderer/stores";
@@ -12,6 +14,7 @@ import { useSectionDropZone } from "../hooks";
 import type { SidebarSection, SidebarWorkspace } from "../types";
 import { WorkspaceListItem } from "../WorkspaceListItem";
 import { WorkspaceSection } from "../WorkspaceSection";
+import { AddRepoDialog } from "./AddRepoDialog";
 import { ProjectHeader } from "./ProjectHeader";
 
 const PROJECT_DND_TYPES = {
@@ -93,6 +96,7 @@ export function ProjectSection({
 	const openModal = useOpenNewWorkspaceModal();
 	const reorderProjects = useReorderProjects();
 	const utils = electronTrpc.useUtils();
+	const [isAddRepoDialogOpen, setIsAddRepoDialogOpen] = useState(false);
 
 	const projectDndType =
 		PROJECT_DND_TYPES[
@@ -269,17 +273,163 @@ export function ProjectSection({
 		drag(drop(projectHeaderRef));
 	}, [drag, drop]);
 
+	const addRepoDialog = isFeatureProject ? (
+		<AddRepoDialog
+			featureProjectId={projectId}
+			open={isAddRepoDialogOpen}
+			onOpenChange={setIsAddRepoDialogOpen}
+		/>
+	) : null;
+
 	if (isSidebarCollapsed) {
 		return (
+			<>
+				<div
+					ref={projectHeaderRef}
+					className={cn(
+						"flex flex-col items-center py-2 border-b border-border last:border-b-0",
+						isDragging && "opacity-30",
+						isDragging && "cursor-grabbing",
+					)}
+				>
+					<div className="flex w-full justify-center">
+						<ProjectHeader
+							projectId={projectId}
+							projectName={projectName}
+							projectColor={projectColor}
+							githubOwner={githubOwner}
+							mainRepoPath={mainRepoPath}
+							hideImage={hideImage}
+							iconUrl={iconUrl}
+							iconLetter={iconLetter}
+							isGitless={isGitless}
+							isCollapsed={isCollapsed}
+							isSidebarCollapsed={isSidebarCollapsed}
+							onToggleCollapse={() => toggleProjectCollapsed(projectId)}
+							workspaceCount={totalWorkspaceCount}
+							workspaceIds={allWorkspaceIds}
+							gitWorkspaceIds={gitWorkspaceIds}
+							onNewWorkspace={handleNewWorkspace}
+						/>
+					</div>
+					<AnimatePresence initial={false}>
+						{!isCollapsed && (
+							<motion.div
+								initial={{ height: 0, opacity: 0 }}
+								animate={{ height: "auto", opacity: 1 }}
+								exit={{ height: 0, opacity: 0 }}
+								transition={{ duration: 0.15, ease: "easeOut" }}
+								className="overflow-hidden w-full"
+							>
+								<div className="flex flex-col items-center gap-1 pt-1">
+									{showRootDropZones && topLevelChildren.length > 0 && (
+										<div
+											{...topUngroupedDropZone.handlers}
+											className={cn(
+												"w-full h-5",
+												getRootDropZoneClassName(
+													topUngroupedDropZone.isDropTarget,
+													topUngroupedDropZone.isDragOver,
+												),
+											)}
+										/>
+									)}
+									{topLevelChildren.map((item) =>
+										item.kind === "workspace" ? (
+											<WorkspaceListItem
+												key={item.workspace.id}
+												id={item.workspace.id}
+												projectId={item.workspace.projectId}
+												worktreePath={item.workspace.worktreePath}
+												name={item.workspace.name}
+												branch={item.workspace.branch}
+												type={item.workspace.type}
+												isUnread={item.workspace.isUnread}
+												isGitless={item.workspace.isGitless}
+												isFeatureProject={isFeatureProject}
+												index={item.topLevelIndex}
+												shortcutIndex={item.shortcutIndex}
+												isCollapsed={isSidebarCollapsed}
+												sectionId={null}
+												sections={sections}
+												orderedWorkspaceIds={orderedWorkspaceIds}
+											/>
+										) : (
+											<WorkspaceSection
+												key={item.section.id}
+												sectionId={item.section.id}
+												projectId={projectId}
+												index={item.topLevelIndex}
+												name={item.section.name}
+												isCollapsed={item.section.isCollapsed}
+												color={item.section.color}
+												workspaces={item.section.workspaces}
+												shortcutBaseIndex={item.shortcutBaseIndex}
+												isSidebarCollapsed
+												allSections={sections}
+												orderedWorkspaceIds={orderedWorkspaceIds}
+											/>
+										),
+									)}
+									{showRootDropZones && topLevelChildren.length > 0 && (
+										<div
+											{...bottomUngroupedDropZone.handlers}
+											className={cn(
+												"w-full h-5",
+												getRootDropZoneClassName(
+													bottomUngroupedDropZone.isDropTarget,
+													bottomUngroupedDropZone.isDragOver,
+												),
+											)}
+										/>
+									)}
+									{isFeatureProject && (
+										<div className="flex flex-col items-center gap-0.5 pt-1">
+											{childProjects.map((child) => (
+												<ChildRepoItem
+													key={child.id}
+													workspaceId={child.workspaceId}
+													mainRepoPath={child.mainRepoPath}
+													name={child.name}
+													branch={child.workspaceBranch}
+													isCollapsed={isSidebarCollapsed}
+												/>
+											))}
+											<Tooltip delayDuration={300}>
+												<TooltipTrigger asChild>
+													<button
+														type="button"
+														onClick={() => setIsAddRepoDialogOpen(true)}
+														className="flex items-center justify-center size-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+													>
+														<LuPlus className="size-3.5" />
+													</button>
+												</TooltipTrigger>
+												<TooltipContent side="right">Add repo</TooltipContent>
+											</Tooltip>
+										</div>
+									)}
+								</div>
+							</motion.div>
+						)}
+					</AnimatePresence>
+				</div>
+				{addRepoDialog}
+			</>
+		);
+	}
+
+	return (
+		<>
 			<div
 				ref={projectHeaderRef}
 				className={cn(
-					"flex flex-col items-center py-2 border-b border-border last:border-b-0",
+					"border-b border-border last:border-b-0",
 					isDragging && "opacity-30",
 					isDragging && "cursor-grabbing",
 				)}
 			>
-				<div className="flex w-full justify-center">
+				<div className="w-full">
 					<ProjectHeader
 						projectId={projectId}
 						projectName={projectName}
@@ -290,6 +440,7 @@ export function ProjectSection({
 						iconUrl={iconUrl}
 						iconLetter={iconLetter}
 						isGitless={isGitless}
+						isFeatureProject={isFeatureProject}
 						isCollapsed={isCollapsed}
 						isSidebarCollapsed={isSidebarCollapsed}
 						onToggleCollapse={() => toggleProjectCollapsed(projectId)}
@@ -299,6 +450,7 @@ export function ProjectSection({
 						onNewWorkspace={handleNewWorkspace}
 					/>
 				</div>
+
 				<AnimatePresence initial={false}>
 					{!isCollapsed && (
 						<motion.div
@@ -306,14 +458,26 @@ export function ProjectSection({
 							animate={{ height: "auto", opacity: 1 }}
 							exit={{ height: 0, opacity: 0 }}
 							transition={{ duration: 0.15, ease: "easeOut" }}
-							className="overflow-hidden w-full"
+							className="overflow-hidden"
 						>
-							<div className="flex flex-col items-center gap-1 pt-1">
+							<div className="pb-1">
+								{showRootDropZones && topLevelChildren.length === 0 && (
+									<div
+										{...topUngroupedDropZone.handlers}
+										className={cn(
+											"transition-colors rounded-sm min-h-8",
+											getRootDropZoneClassName(
+												topUngroupedDropZone.isDropTarget,
+												topUngroupedDropZone.isDragOver,
+											),
+										)}
+									/>
+								)}
 								{showRootDropZones && topLevelChildren.length > 0 && (
 									<div
 										{...topUngroupedDropZone.handlers}
 										className={cn(
-											"w-full h-5",
+											"h-5",
 											getRootDropZoneClassName(
 												topUngroupedDropZone.isDropTarget,
 												topUngroupedDropZone.isDragOver,
@@ -336,7 +500,6 @@ export function ProjectSection({
 											isFeatureProject={isFeatureProject}
 											index={item.topLevelIndex}
 											shortcutIndex={item.shortcutIndex}
-											isCollapsed={isSidebarCollapsed}
 											sectionId={null}
 											sections={sections}
 											orderedWorkspaceIds={orderedWorkspaceIds}
@@ -352,7 +515,6 @@ export function ProjectSection({
 											color={item.section.color}
 											workspaces={item.section.workspaces}
 											shortcutBaseIndex={item.shortcutBaseIndex}
-											isSidebarCollapsed
 											allSections={sections}
 											orderedWorkspaceIds={orderedWorkspaceIds}
 										/>
@@ -362,7 +524,7 @@ export function ProjectSection({
 									<div
 										{...bottomUngroupedDropZone.handlers}
 										className={cn(
-											"w-full h-5",
+											"h-5",
 											getRootDropZoneClassName(
 												bottomUngroupedDropZone.isDropTarget,
 												bottomUngroupedDropZone.isDragOver,
@@ -370,8 +532,8 @@ export function ProjectSection({
 										)}
 									/>
 								)}
-								{isFeatureProject && childProjects.length > 0 && (
-									<div className="flex flex-col items-center gap-0.5 pt-1">
+								{isFeatureProject && (
+									<div className="flex flex-col gap-0.5 pt-1">
 										{childProjects.map((child) => (
 											<ChildRepoItem
 												key={child.id}
@@ -379,9 +541,16 @@ export function ProjectSection({
 												mainRepoPath={child.mainRepoPath}
 												name={child.name}
 												branch={child.workspaceBranch}
-												isCollapsed={isSidebarCollapsed}
 											/>
 										))}
+										<button
+											type="button"
+											onClick={() => setIsAddRepoDialogOpen(true)}
+											className="flex items-center gap-2 w-full pl-4 pr-2 py-1 text-left rounded-md transition-colors min-h-[28px] text-muted-foreground hover:text-foreground hover:bg-accent/50"
+										>
+											<LuPlus className="size-3.5 shrink-0 opacity-60" />
+											<span className="text-xs font-medium">Add repo</span>
+										</button>
 									</div>
 								)}
 							</div>
@@ -389,138 +558,7 @@ export function ProjectSection({
 					)}
 				</AnimatePresence>
 			</div>
-		);
-	}
-
-	return (
-		<div
-			ref={projectHeaderRef}
-			className={cn(
-				"border-b border-border last:border-b-0",
-				isDragging && "opacity-30",
-				isDragging && "cursor-grabbing",
-			)}
-		>
-			<div className="w-full">
-				<ProjectHeader
-					projectId={projectId}
-					projectName={projectName}
-					projectColor={projectColor}
-					githubOwner={githubOwner}
-					mainRepoPath={mainRepoPath}
-					hideImage={hideImage}
-					iconUrl={iconUrl}
-					iconLetter={iconLetter}
-					isGitless={isGitless}
-					isFeatureProject={isFeatureProject}
-					isCollapsed={isCollapsed}
-					isSidebarCollapsed={isSidebarCollapsed}
-					onToggleCollapse={() => toggleProjectCollapsed(projectId)}
-					workspaceCount={totalWorkspaceCount}
-					workspaceIds={allWorkspaceIds}
-					gitWorkspaceIds={gitWorkspaceIds}
-					onNewWorkspace={handleNewWorkspace}
-				/>
-			</div>
-
-			<AnimatePresence initial={false}>
-				{!isCollapsed && (
-					<motion.div
-						initial={{ height: 0, opacity: 0 }}
-						animate={{ height: "auto", opacity: 1 }}
-						exit={{ height: 0, opacity: 0 }}
-						transition={{ duration: 0.15, ease: "easeOut" }}
-						className="overflow-hidden"
-					>
-						<div className="pb-1">
-							{showRootDropZones && topLevelChildren.length === 0 && (
-								<div
-									{...topUngroupedDropZone.handlers}
-									className={cn(
-										"transition-colors rounded-sm min-h-8",
-										getRootDropZoneClassName(
-											topUngroupedDropZone.isDropTarget,
-											topUngroupedDropZone.isDragOver,
-										),
-									)}
-								/>
-							)}
-							{showRootDropZones && topLevelChildren.length > 0 && (
-								<div
-									{...topUngroupedDropZone.handlers}
-									className={cn(
-										"h-5",
-										getRootDropZoneClassName(
-											topUngroupedDropZone.isDropTarget,
-											topUngroupedDropZone.isDragOver,
-										),
-									)}
-								/>
-							)}
-							{topLevelChildren.map((item) =>
-								item.kind === "workspace" ? (
-									<WorkspaceListItem
-										key={item.workspace.id}
-										id={item.workspace.id}
-										projectId={item.workspace.projectId}
-										worktreePath={item.workspace.worktreePath}
-										name={item.workspace.name}
-										branch={item.workspace.branch}
-										type={item.workspace.type}
-										isUnread={item.workspace.isUnread}
-										isGitless={item.workspace.isGitless}
-										isFeatureProject={isFeatureProject}
-										index={item.topLevelIndex}
-										shortcutIndex={item.shortcutIndex}
-										sectionId={null}
-										sections={sections}
-										orderedWorkspaceIds={orderedWorkspaceIds}
-									/>
-								) : (
-									<WorkspaceSection
-										key={item.section.id}
-										sectionId={item.section.id}
-										projectId={projectId}
-										index={item.topLevelIndex}
-										name={item.section.name}
-										isCollapsed={item.section.isCollapsed}
-										color={item.section.color}
-										workspaces={item.section.workspaces}
-										shortcutBaseIndex={item.shortcutBaseIndex}
-										allSections={sections}
-										orderedWorkspaceIds={orderedWorkspaceIds}
-									/>
-								),
-							)}
-							{showRootDropZones && topLevelChildren.length > 0 && (
-								<div
-									{...bottomUngroupedDropZone.handlers}
-									className={cn(
-										"h-5",
-										getRootDropZoneClassName(
-											bottomUngroupedDropZone.isDropTarget,
-											bottomUngroupedDropZone.isDragOver,
-										),
-									)}
-								/>
-							)}
-							{isFeatureProject && childProjects.length > 0 && (
-								<div className="flex flex-col gap-0.5 pt-1">
-									{childProjects.map((child) => (
-										<ChildRepoItem
-											key={child.id}
-											workspaceId={child.workspaceId}
-											mainRepoPath={child.mainRepoPath}
-											name={child.name}
-											branch={child.workspaceBranch}
-										/>
-									))}
-								</div>
-							)}
-						</div>
-					</motion.div>
-				)}
-			</AnimatePresence>
-		</div>
+			{addRepoDialog}
+		</>
 	);
 }
