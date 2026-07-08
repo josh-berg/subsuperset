@@ -25,6 +25,7 @@ import { getDefaultBranch } from "../workspaces/utils/git";
 import { getSimpleGitWithShellPath } from "../workspaces/utils/git-client";
 import { execWithShellEnv } from "../workspaces/utils/shell-env";
 import { getDefaultProjectColor } from "./utils/colors";
+import { regenerateMultiRepoContext } from "./utils/multi-repo-context-sync";
 import {
 	ensureChildRepoWorkspace,
 	ensureGitlessWorkspace,
@@ -412,6 +413,12 @@ export const createFeatureProjectsRouter = () => {
 					resolvedBranch,
 				);
 
+				try {
+					await regenerateMultiRepoContext(input.featureProjectId);
+				} catch (err) {
+					console.warn("[addRepo] Failed to sync multi-repo context:", err);
+				}
+
 				track("feature_project_repo_added", {
 					feature_project_id: input.featureProjectId,
 					child_project_id: childProject.id,
@@ -462,6 +469,30 @@ export const createFeatureProjectsRouter = () => {
 						workspaceBranch: ws?.branch ?? "",
 					};
 				});
+			}),
+
+		/**
+		 * Manually regenerate the auto-injected multi-repo context files for a
+		 * feature project (or a child repo within one). Normally unnecessary
+		 * since `addRepo`/`removeRepo` keep these files in sync automatically;
+		 * exposed for recovery if a file was deleted or edited by hand.
+		 */
+		syncMultiRepoContext: publicProcedure
+			.input(z.object({ projectId: z.string() }))
+			.mutation(async ({ input }) => {
+				const project = localDb
+					.select()
+					.from(projects)
+					.where(eq(projects.id, input.projectId))
+					.get();
+				if (!project) return { applicable: false as const };
+
+				const featureProjectId = project.isFeatureProject
+					? project.id
+					: project.parentProjectId;
+				if (!featureProjectId) return { applicable: false as const };
+
+				return regenerateMultiRepoContext(featureProjectId);
 			}),
 
 		/** Remove a child repo from a feature project. Optionally deletes the folder from disk. */
@@ -529,6 +560,12 @@ export const createFeatureProjectsRouter = () => {
 				if (input.deleteFromDisk) {
 					const { rm } = await import("node:fs/promises");
 					await rm(child.mainRepoPath, { recursive: true, force: true });
+				}
+
+				try {
+					await regenerateMultiRepoContext(child.parentProjectId);
+				} catch (err) {
+					console.warn("[removeRepo] Failed to sync multi-repo context:", err);
 				}
 
 				return { success: true };
