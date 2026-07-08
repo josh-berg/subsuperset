@@ -1,4 +1,5 @@
 import type { ExternalApp } from "@superset/local-db";
+import { Checkbox } from "@superset/ui/checkbox";
 import {
 	ContextMenu,
 	ContextMenuContent,
@@ -44,6 +45,9 @@ interface FileItemProps {
 	isExpandedView?: boolean;
 	projectId?: string;
 	defaultApp?: ExternalApp | null;
+	/** Whether this file is included in the next commit. Omit to hide the checkbox entirely. */
+	checked?: boolean;
+	onCheckedChange?: (checked: boolean) => void;
 }
 
 function LevelIndicators({ level }: { level: number }) {
@@ -79,6 +83,8 @@ export function FileItem({
 	isExpandedView = false,
 	projectId,
 	defaultApp,
+	checked,
+	onCheckedChange,
 }: FileItemProps) {
 	const [showDiscardDialog, setShowDiscardDialog] = useState(false);
 	const { activeFileKey } = useScrollContext();
@@ -222,6 +228,14 @@ export function FileItem({
 			)}
 		>
 			{hasIndent && <LevelIndicators level={level} />}
+			{onCheckedChange && (
+				<Checkbox
+					checked={checked}
+					onCheckedChange={(value) => onCheckedChange(value === true)}
+					onClick={(e) => e.stopPropagation()}
+					className="shrink-0 cursor-pointer self-center"
+				/>
+			)}
 			<button
 				type="button"
 				onClick={handleClick}

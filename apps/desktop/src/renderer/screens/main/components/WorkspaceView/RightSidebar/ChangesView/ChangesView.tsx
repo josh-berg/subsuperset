@@ -1,8 +1,9 @@
+import { Checkbox } from "@superset/ui/checkbox";
 import { toast } from "@superset/ui/sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@superset/ui/tabs";
 import { cn } from "@superset/ui/utils";
 import { useParams } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { electronTrpc } from "renderer/lib/electron-trpc";
 import { getGitHubStatusQueryPolicy } from "renderer/lib/githubQueryPolicy";
 import { useWorkspaceFileEvents } from "renderer/screens/main/components/WorkspaceView/hooks/useWorkspaceFileEvents";
@@ -329,6 +330,81 @@ export function ChangesView({
 
 	const hasChanges = stagedFiles.length > 0 || combinedUnstaged.length > 0;
 
+	const allChangedFiles = useMemo(
+		() => [...stagedFiles, ...combinedUnstaged],
+		[stagedFiles, combinedUnstaged],
+	);
+
+	const [excludedCommitPaths, setExcludedCommitPaths] = useState<Set<string>>(
+		() => new Set(),
+	);
+
+	// Drop paths that no longer represent a pending change (committed, discarded, reverted).
+	useEffect(() => {
+		const validPaths = new Set(allChangedFiles.map((file) => file.path));
+		setExcludedCommitPaths((prev) => {
+			let changed = false;
+			const next = new Set<string>();
+			for (const path of prev) {
+				if (validPaths.has(path)) {
+					next.add(path);
+				} else {
+					changed = true;
+				}
+			}
+			return changed ? next : prev;
+		});
+	}, [allChangedFiles]);
+
+	const isFileChecked = useCallback(
+		(file: ChangedFile) => !excludedCommitPaths.has(file.path),
+		[excludedCommitPaths],
+	);
+
+	const toggleFileChecked = useCallback((file: ChangedFile) => {
+		setExcludedCommitPaths((prev) => {
+			const next = new Set(prev);
+			if (next.has(file.path)) {
+				next.delete(file.path);
+			} else {
+				next.add(file.path);
+			}
+			return next;
+		});
+	}, []);
+
+	const setFilesChecked = useCallback(
+		(files: ChangedFile[], checked: boolean) => {
+			setExcludedCommitPaths((prev) => {
+				const next = new Set(prev);
+				for (const file of files) {
+					if (checked) {
+						next.delete(file.path);
+					} else {
+						next.add(file.path);
+					}
+				}
+				return next;
+			});
+		},
+		[],
+	);
+
+	const checkedFileCount = allChangedFiles.filter(isFileChecked).length;
+	const selectAllState: boolean | "indeterminate" =
+		checkedFileCount === 0
+			? false
+			: checkedFileCount === allChangedFiles.length
+				? true
+				: "indeterminate";
+
+	const filesToStage = combinedUnstaged
+		.filter((file) => isFileChecked(file))
+		.map((file) => file.path);
+	const filesToUnstage = stagedFiles
+		.filter((file) => !isFileChecked(file))
+		.map((file) => file.path);
+
 	const commitsWithFiles = commits.map((commit) => ({
 		...commit,
 		files: commitFilesMap.get(commit.hash) || commit.files,
@@ -510,40 +586,61 @@ export function ChangesView({
 							No changes detected
 						</div>
 					) : (
-						<div
-							className="flex-1 overflow-y-auto"
-							data-changes-scroll-container
-						>
-							<FileList
-								files={stagedFiles}
-								category="staged"
-								viewMode={fileListViewMode}
-								selectedFile={selectedFile}
-								selectedCommitHash={selectedCommitHash}
-								onFileSelect={(file) => handleFileSelect(file, "staged")}
-								worktreePath={worktreePath}
-								projectId={projectId}
-								isExpandedView={isExpandedView}
-								onDiscard={handleDiscard}
-							/>
-							<FileList
-								files={combinedUnstaged}
-								category="unstaged"
-								viewMode={fileListViewMode}
-								selectedFile={selectedFile}
-								selectedCommitHash={selectedCommitHash}
-								onFileSelect={(file) => handleFileSelect(file, "unstaged")}
-								worktreePath={worktreePath}
-								projectId={projectId}
-								isExpandedView={isExpandedView}
-								onDiscard={handleDiscard}
-							/>
-						</div>
+						<>
+							<div className="flex items-center gap-1.5 px-2.5 py-1 border-b border-border/50 shrink-0">
+								<Checkbox
+									checked={selectAllState}
+									onCheckedChange={() =>
+										setFilesChecked(allChangedFiles, selectAllState !== true)
+									}
+									className="cursor-pointer"
+								/>
+								<span className="text-[11px] text-muted-foreground">
+									{checkedFileCount} of {allChangedFiles.length} changes
+									selected
+								</span>
+							</div>
+							<div
+								className="flex-1 overflow-y-auto"
+								data-changes-scroll-container
+							>
+								<FileList
+									files={stagedFiles}
+									category="staged"
+									viewMode={fileListViewMode}
+									selectedFile={selectedFile}
+									selectedCommitHash={selectedCommitHash}
+									onFileSelect={(file) => handleFileSelect(file, "staged")}
+									worktreePath={worktreePath}
+									projectId={projectId}
+									isExpandedView={isExpandedView}
+									onDiscard={handleDiscard}
+									isFileChecked={isFileChecked}
+									onToggleFileChecked={toggleFileChecked}
+								/>
+								<FileList
+									files={combinedUnstaged}
+									category="unstaged"
+									viewMode={fileListViewMode}
+									selectedFile={selectedFile}
+									selectedCommitHash={selectedCommitHash}
+									onFileSelect={(file) => handleFileSelect(file, "unstaged")}
+									worktreePath={worktreePath}
+									projectId={projectId}
+									isExpandedView={isExpandedView}
+									onDiscard={handleDiscard}
+									isFileChecked={isFileChecked}
+									onToggleFileChecked={toggleFileChecked}
+								/>
+							</div>
+						</>
 					)}
 					<div className="shrink-0 border-t border-border">
 						<CommitInput
 							worktreePath={worktreePath}
-							hasStagedChanges={stagedFiles.length > 0}
+							hasChangesToCommit={checkedFileCount > 0}
+							filesToStage={filesToStage}
+							filesToUnstage={filesToUnstage}
 							hasUpstream={status.hasUpstream}
 							pullRequest={activePullRequest ?? null}
 							canCreatePR={prActionState.canCreatePR}

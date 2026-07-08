@@ -25,7 +25,9 @@ type CommitInputPullRequest = NonNullable<GitHubStatus["pr"]>;
 
 interface CommitInputProps {
 	worktreePath: string;
-	hasStagedChanges: boolean;
+	hasChangesToCommit: boolean;
+	filesToStage: string[];
+	filesToUnstage: string[];
 	hasUpstream: boolean;
 	pullRequest?: CommitInputPullRequest | null;
 	canCreatePR: boolean;
@@ -35,7 +37,9 @@ interface CommitInputProps {
 
 export function CommitInput({
 	worktreePath,
-	hasStagedChanges,
+	hasChangesToCommit,
+	filesToStage,
+	filesToUnstage,
 	hasUpstream,
 	pullRequest,
 	canCreatePR,
@@ -54,6 +58,9 @@ export function CommitInput({
 		onError: (error) => toast.error(`Commit failed: ${error.message}`),
 	});
 
+	const stageFilesMutation = electronTrpc.changes.stageFiles.useMutation();
+	const unstageFilesMutation = electronTrpc.changes.unstageFiles.useMutation();
+
 	const pushMutation = electronTrpc.changes.push.useMutation({
 		onSuccess: () => {
 			toast.success("Pushed");
@@ -70,15 +77,35 @@ export function CommitInput({
 
 	const isPending =
 		commitMutation.isPending ||
+		stageFilesMutation.isPending ||
+		unstageFilesMutation.isPending ||
 		pushMutation.isPending ||
 		isCreateOrOpenPRPending;
 
-	const canCommit = hasStagedChanges && commitMessage.trim();
+	const canCommit = hasChangesToCommit && commitMessage.trim();
 	const hasExistingPR = Boolean(pullRequest);
 	const prUrl = pullRequest?.url;
 
-	const handleCommit = () => {
+	// Reconcile git's index with the checked files before committing, since checkboxes
+	// track commit inclusion independently of actual staged/unstaged state.
+	const reconcileStaging = async () => {
+		if (filesToUnstage.length > 0) {
+			await unstageFilesMutation.mutateAsync({
+				worktreePath,
+				filePaths: filesToUnstage,
+			});
+		}
+		if (filesToStage.length > 0) {
+			await stageFilesMutation.mutateAsync({
+				worktreePath,
+				filePaths: filesToStage,
+			});
+		}
+	};
+
+	const handleCommit = async () => {
 		if (!canCommit) return;
+		await reconcileStaging();
 		commitMutation.mutate({ worktreePath, message: commitMessage.trim() });
 	};
 
@@ -100,16 +127,18 @@ export function CommitInput({
 		);
 	};
 
-	const handleCommitAndPush = () => {
+	const handleCommitAndPush = async () => {
 		if (!canCommit) return;
+		await reconcileStaging();
 		commitMutation.mutate(
 			{ worktreePath, message: commitMessage.trim() },
 			{ onSuccess: handlePush },
 		);
 	};
 
-	const handleCommitPushAndCreatePR = () => {
+	const handleCommitPushAndCreatePR = async () => {
 		if (!canCommit) return;
+		await reconcileStaging();
 		commitMutation.mutate(
 			{ worktreePath, message: commitMessage.trim() },
 			{
@@ -130,11 +159,11 @@ export function CommitInput({
 
 	const handleOpenPR = () => prUrl && window.open(prUrl, "_blank");
 
-	const commitTooltip = !hasStagedChanges
-		? "No staged changes"
+	const commitTooltip = !hasChangesToCommit
+		? "No changes selected"
 		: !commitMessage.trim()
 			? "Enter a commit message"
-			: "Commit staged changes (⌘↵)";
+			: "Commit selected changes (⌘↵)";
 
 	return (
 		<div className="flex flex-col gap-1.5 px-2 py-2">

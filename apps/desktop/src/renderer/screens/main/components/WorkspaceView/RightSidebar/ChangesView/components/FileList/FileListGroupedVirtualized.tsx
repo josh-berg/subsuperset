@@ -26,6 +26,8 @@ interface FileListGroupedVirtualizedProps {
 	isExpandedView?: boolean;
 	projectId?: string;
 	defaultApp?: ExternalApp | null;
+	isFileChecked?: (file: ChangedFile) => boolean;
+	onToggleFileChecked?: (file: ChangedFile) => void;
 }
 
 interface FolderGroup {
@@ -83,6 +85,8 @@ export function FileListGroupedVirtualized({
 	isExpandedView,
 	projectId,
 	defaultApp,
+	isFileChecked,
+	onToggleFileChecked,
 }: FileListGroupedVirtualizedProps) {
 	const listRef = useRef<HTMLDivElement>(null);
 	const [expandedFolders, setExpandedFolders] = useState<
@@ -207,7 +211,7 @@ export function FileListGroupedVirtualized({
 									{null}
 								</FolderRow>
 							) : (
-								<div className="ml-1.5 border-l border-border pl-0.5">
+								<div className="ml-2">
 									<FileItem
 										file={row.file}
 										isSelected={
@@ -230,6 +234,14 @@ export function FileListGroupedVirtualized({
 										category={category}
 										commitHash={commitHash}
 										isExpandedView={isExpandedView}
+										checked={
+											isFileChecked ? isFileChecked(row.file) : undefined
+										}
+										onCheckedChange={
+											onToggleFileChecked
+												? () => onToggleFileChecked(row.file)
+												: undefined
+										}
 									/>
 								</div>
 							)}

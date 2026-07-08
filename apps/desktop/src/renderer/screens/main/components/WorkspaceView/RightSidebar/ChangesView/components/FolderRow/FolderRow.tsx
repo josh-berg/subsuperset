@@ -268,12 +268,7 @@ export function FolderRow({
 					</ContextMenuTrigger>
 					{contextMenuContent}
 				</ContextMenu>
-				<CollapsibleContent
-					className={cn(
-						"min-w-0",
-						isGrouped && "ml-1.5 border-l border-border pl-0.5",
-					)}
-				>
+				<CollapsibleContent className={cn("min-w-0", isGrouped && "ml-2")}>
 					{children}
 				</CollapsibleContent>
 			</Collapsible>

@@ -27,6 +27,8 @@ interface FileListProps {
 	commitHash?: string;
 	isExpandedView?: boolean;
 	projectId?: string;
+	isFileChecked?: (file: ChangedFile) => boolean;
+	onToggleFileChecked?: (file: ChangedFile) => void;
 }
 
 export function FileList({
@@ -47,6 +49,8 @@ export function FileList({
 	commitHash,
 	isExpandedView,
 	projectId,
+	isFileChecked,
+	onToggleFileChecked,
 }: FileListProps) {
 	const { data: defaultApp } = electronTrpc.projects.getDefaultApp.useQuery(
 		{ projectId: projectId ?? "" },
@@ -81,6 +85,8 @@ export function FileList({
 					isExpandedView={isExpandedView}
 					projectId={projectId}
 					defaultApp={defaultApp}
+					isFileChecked={isFileChecked}
+					onToggleFileChecked={onToggleFileChecked}
 				/>
 			);
 		}
@@ -104,6 +110,8 @@ export function FileList({
 				isExpandedView={isExpandedView}
 				projectId={projectId}
 				defaultApp={defaultApp}
+				isFileChecked={isFileChecked}
+				onToggleFileChecked={onToggleFileChecked}
 			/>
 		);
 	}
@@ -128,6 +136,8 @@ export function FileList({
 				isExpandedView={isExpandedView}
 				projectId={projectId}
 				defaultApp={defaultApp}
+				isFileChecked={isFileChecked}
+				onToggleFileChecked={onToggleFileChecked}
 			/>
 		);
 	}
@@ -151,6 +161,8 @@ export function FileList({
 			isExpandedView={isExpandedView}
 			projectId={projectId}
 			defaultApp={defaultApp}
+			isFileChecked={isFileChecked}
+			onToggleFileChecked={onToggleFileChecked}
 		/>
 	);
 }

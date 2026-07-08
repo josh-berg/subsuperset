@@ -47,6 +47,8 @@ interface FileListTreeProps {
 	isExpandedView?: boolean;
 	projectId?: string;
 	defaultApp?: ExternalApp | null;
+	isFileChecked?: (file: ChangedFile) => boolean;
+	onToggleFileChecked?: (file: ChangedFile) => void;
 }
 
 function buildFileTree(files: ChangedFile[]): FileTreeNode[] {
@@ -120,6 +122,8 @@ interface TreeNodeComponentProps {
 	isExpandedView?: boolean;
 	projectId?: string;
 	defaultApp?: ExternalApp | null;
+	isFileChecked?: (file: ChangedFile) => boolean;
+	onToggleFileChecked?: (file: ChangedFile) => void;
 }
 
 function TreeNodeComponent({
@@ -141,6 +145,8 @@ function TreeNodeComponent({
 	isExpandedView,
 	projectId,
 	defaultApp,
+	isFileChecked,
+	onToggleFileChecked,
 }: TreeNodeComponentProps) {
 	const [isExpanded, setIsExpanded] = useState(true);
 	const hasChildren = node.children && node.children.length > 0;
@@ -215,6 +221,8 @@ function TreeNodeComponent({
 						isExpandedView={isExpandedView}
 						projectId={projectId}
 						defaultApp={defaultApp}
+						isFileChecked={isFileChecked}
+						onToggleFileChecked={onToggleFileChecked}
 					/>
 				))}
 			</FolderRow>
@@ -240,6 +248,10 @@ function TreeNodeComponent({
 				category={category}
 				commitHash={commitHash}
 				isExpandedView={isExpandedView}
+				checked={isFileChecked ? isFileChecked(file) : undefined}
+				onCheckedChange={
+					onToggleFileChecked ? () => onToggleFileChecked(file) : undefined
+				}
 			/>
 		);
 	}
@@ -265,6 +277,8 @@ export function FileListTree({
 	isExpandedView,
 	projectId,
 	defaultApp,
+	isFileChecked,
+	onToggleFileChecked,
 }: FileListTreeProps) {
 	const tree = useMemo(() => buildFileTree(files), [files]);
 
@@ -290,6 +304,8 @@ export function FileListTree({
 					isExpandedView={isExpandedView}
 					projectId={projectId}
 					defaultApp={defaultApp}
+					isFileChecked={isFileChecked}
+					onToggleFileChecked={onToggleFileChecked}
 				/>
 			))}
 		</div>

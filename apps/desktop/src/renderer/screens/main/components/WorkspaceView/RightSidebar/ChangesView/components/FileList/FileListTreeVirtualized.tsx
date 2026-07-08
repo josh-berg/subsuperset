@@ -35,6 +35,8 @@ interface FileListTreeVirtualizedProps {
 	isExpandedView?: boolean;
 	projectId?: string;
 	defaultApp?: ExternalApp | null;
+	isFileChecked?: (file: ChangedFile) => boolean;
+	onToggleFileChecked?: (file: ChangedFile) => void;
 }
 
 type TreeRow =
@@ -173,6 +175,8 @@ export function FileListTreeVirtualized({
 	isExpandedView,
 	projectId,
 	defaultApp,
+	isFileChecked,
+	onToggleFileChecked,
 }: FileListTreeVirtualizedProps) {
 	const listRef = useRef<HTMLDivElement>(null);
 	const [expandedFolders, setExpandedFolders] = useState<
@@ -300,6 +304,12 @@ export function FileListTreeVirtualized({
 									category={category}
 									commitHash={commitHash}
 									isExpandedView={isExpandedView}
+									checked={isFileChecked ? isFileChecked(row.file) : undefined}
+									onCheckedChange={
+										onToggleFileChecked
+											? () => onToggleFileChecked(row.file)
+											: undefined
+									}
 								/>
 							)}
 						</div>
