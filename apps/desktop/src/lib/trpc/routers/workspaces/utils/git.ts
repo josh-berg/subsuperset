@@ -11,6 +11,7 @@ import {
 	sanitizeBranchNameWithMaxLength,
 } from "shared/utils/branch";
 import type { StatusResult } from "simple-git";
+import { isUpstreamMissingError } from "../../changes/git-utils";
 import { runWithPostCheckoutHookTolerance } from "../../utils/git-hook-tolerance";
 import { execGitWithShellPath, getSimpleGitWithShellPath } from "./git-client";
 import { execWithShellEnv, getProcessEnvWithShellPath } from "./shell-env";
@@ -1086,6 +1087,45 @@ export async function hasUncommittedChanges(
 ): Promise<boolean> {
 	const status = await getStatusNoLock(worktreePath);
 	return !status.isClean();
+}
+
+export type PullAllSkipReason = "dirty" | "no-upstream" | "conflict" | "error";
+
+export type PullOutcome =
+	| { status: "pulled" }
+	| { status: "skipped"; reason: PullAllSkipReason };
+
+/**
+ * Pulls (rebase) a worktree only if it can be done without touching local
+ * work: skips dirty working trees outright, and if a rebase started by the
+ * pull hits a conflict, aborts it so the worktree is left exactly as it was
+ * rather than mid-rebase.
+ */
+export async function pullWorktreeIfClean(
+	worktreePath: string,
+): Promise<PullOutcome> {
+	if (await hasUncommittedChanges(worktreePath)) {
+		return { status: "skipped", reason: "dirty" };
+	}
+
+	const git = await getSimpleGitWithShellPath(worktreePath);
+	try {
+		await git.pull(["--rebase"]);
+		return { status: "pulled" };
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		if (isUpstreamMissingError(message)) {
+			return { status: "skipped", reason: "no-upstream" };
+		}
+		try {
+			await git.rebase(["--abort"]);
+			return { status: "skipped", reason: "conflict" };
+		} catch {
+			// No rebase was in progress to abort — the pull failed before
+			// reaching that step (e.g. network/auth error).
+			return { status: "skipped", reason: "error" };
+		}
+	}
 }
 
 export async function hasUnpushedCommits(

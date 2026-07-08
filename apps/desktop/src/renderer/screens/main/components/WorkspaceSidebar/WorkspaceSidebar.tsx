@@ -8,6 +8,7 @@ import { useAutoFetchBranches } from "../../hooks/useAutoFetchBranches";
 import { MultiDragPreview } from "./MultiDragPreview";
 import { PortsList } from "./PortsList";
 import { ProjectSection } from "./ProjectSection";
+import { PullAllButton } from "./PullAllButton";
 import { SetupScriptCard } from "./SetupScriptCard";
 import { SidebarDropZone } from "./SidebarDropZone";
 import { WorkspaceSidebarFooter } from "./WorkspaceSidebarFooter";
@@ -54,6 +55,33 @@ export function WorkspaceSidebar({
 			),
 		};
 	}, [groups]);
+
+	const gitWorkspaces = useMemo(() => {
+		const normal = groupsByCategory.normal.flatMap(({ group }) => [
+			...group.workspaces.map((w) => ({
+				workspaceId: w.id,
+				repoName: group.project.name,
+				branch: w.branch,
+			})),
+			...(group.sections ?? []).flatMap((s) =>
+				s.workspaces.map((w) => ({
+					workspaceId: w.id,
+					repoName: group.project.name,
+					branch: w.branch,
+				})),
+			),
+		]);
+		const feature = groupsByCategory.feature.flatMap(({ group }) =>
+			(group.childProjects ?? [])
+				.filter((c): c is typeof c & { workspaceId: string } => !!c.workspaceId)
+				.map((c) => ({
+					workspaceId: c.workspaceId,
+					repoName: c.name,
+					branch: c.workspaceBranch,
+				})),
+		);
+		return [...normal, ...feature];
+	}, [groupsByCategory]);
 
 	const projectShortcutIndices = useMemo(() => {
 		const ordered = [
@@ -126,6 +154,7 @@ export function WorkspaceSidebar({
 
 	return (
 		<SidebarDropZone className="flex flex-col h-full bg-muted/45 dark:bg-muted/35">
+			<PullAllButton isCollapsed={isCollapsed} gitWorkspaces={gitWorkspaces} />
 			{/* biome-ignore lint/a11y/noStaticElementInteractions: mousedown on empty sidebar space clears selection */}
 			<div
 				className="flex-1 overflow-y-auto hide-scrollbar"

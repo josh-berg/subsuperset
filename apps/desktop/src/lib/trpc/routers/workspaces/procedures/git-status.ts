@@ -9,10 +9,12 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
 import { localDb } from "main/lib/local-db";
 import { z } from "zod";
 import { publicProcedure, router } from "../../..";
+import { clearStatusCacheForWorktree } from "../../changes/utils/status-cache";
 import {
 	getProject,
 	getWorkspace,
 	getWorktree,
+	resolveWorkspaceCheckoutPath,
 	updateProjectDefaultBranch,
 } from "../utils/db-helpers";
 import {
@@ -21,6 +23,8 @@ import {
 	getAheadBehindCount,
 	getDefaultBranch,
 	listExternalWorktrees,
+	type PullAllSkipReason,
+	pullWorktreeIfClean,
 	refreshDefaultBranch,
 } from "../utils/git";
 
@@ -177,8 +181,10 @@ export const createGitStatusProcedures = () => {
 					return { ahead: 0, behind: 0 };
 				}
 
+				const repoPath = resolveWorkspaceCheckoutPath({ workspace, project });
+
 				return getAheadBehindCount({
-					repoPath: project.mainRepoPath,
+					repoPath,
 					defaultBranch: workspace.branch,
 				});
 			}),
@@ -194,7 +200,7 @@ export const createGitStatusProcedures = () => {
 							return [workspaceId, { ahead: 0, behind: 0 }] as const;
 						}
 						const counts = await getAheadBehindCount({
-							repoPath: project.mainRepoPath,
+							repoPath: resolveWorkspaceCheckoutPath({ workspace, project }),
 							defaultBranch: workspace.branch,
 						});
 						return [workspaceId, counts] as const;
@@ -276,6 +282,49 @@ export const createGitStatusProcedures = () => {
 
 				return { fetchedWorkspaceIds };
 			}),
+
+		/**
+		 * Pulls every git-backed workspace whose worktree is clean, skipping (not
+		 * force-pulling) any that are dirty, have no upstream, or hit a rebase
+		 * conflict. Dedupes by resolved checkout path since branch-type
+		 * workspaces share their project's `mainRepoPath`.
+		 */
+		pullAllWorkspaces: publicProcedure.mutation(async () => {
+			const rows = localDb
+				.select({ workspace: workspaces, project: projects })
+				.from(workspaces)
+				.innerJoin(projects, eq(workspaces.projectId, projects.id))
+				.where(isNull(workspaces.deletingAt))
+				.all();
+
+			const seenPaths = new Set<string>();
+			const pulled: string[] = [];
+			const skipped: { workspaceId: string; reason: PullAllSkipReason }[] = [];
+
+			for (const { workspace, project } of rows) {
+				if (project.isGitless) continue;
+
+				const worktreePath = resolveWorkspaceCheckoutPath({
+					workspace,
+					project,
+				});
+
+				if (!existsSync(worktreePath) || seenPaths.has(worktreePath)) {
+					continue;
+				}
+				seenPaths.add(worktreePath);
+
+				const result = await pullWorktreeIfClean(worktreePath);
+				if (result.status === "pulled") {
+					pulled.push(workspace.id);
+					clearStatusCacheForWorktree(worktreePath);
+				} else {
+					skipped.push({ workspaceId: workspace.id, reason: result.reason });
+				}
+			}
+
+			return { pulled, skipped };
+		}),
 
 		getGitHubStatus: publicProcedure
 			.input(z.object({ workspaceId: z.string() }))

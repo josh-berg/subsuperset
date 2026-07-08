@@ -205,6 +205,27 @@ export function getWorktree(worktreeId: string): SelectWorktree | undefined {
 }
 
 /**
+ * Resolves the on-disk checkout path git commands should run against for a
+ * workspace: its own worktree directory for `type: "worktree"` workspaces,
+ * or the project's main repo checkout for `type: "branch"` workspaces (which
+ * have no separate worktree row). Running git commands against the wrong
+ * path — e.g. the main repo instead of a workspace's own worktree — reads
+ * `HEAD` for the wrong branch and produces incorrect ahead/behind counts.
+ */
+export function resolveWorkspaceCheckoutPath({
+	workspace,
+	project,
+}: {
+	workspace: SelectWorkspace;
+	project: SelectProject;
+}): string {
+	if (!workspace.worktreeId) {
+		return project.mainRepoPath;
+	}
+	return getWorktree(workspace.worktreeId)?.path ?? project.mainRepoPath;
+}
+
+/**
  * Fetch a workspace with its related worktree and project.
  * Returns null if workspace not found.
  */
