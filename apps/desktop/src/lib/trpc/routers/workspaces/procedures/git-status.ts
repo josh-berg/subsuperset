@@ -5,7 +5,12 @@ import type {
 	SelectWorkspace,
 } from "@superset/local-db";
 import { projects, workspaces, worktrees } from "@superset/local-db";
+import { observable } from "@trpc/server/observable";
 import { and, eq, inArray, isNull } from "drizzle-orm";
+import {
+	type GitBatchProgress,
+	gitBatchProgressEmitter,
+} from "main/lib/git-batch-progress";
 import { localDb } from "main/lib/local-db";
 import { z } from "zod";
 import { publicProcedure, router } from "../../..";
@@ -218,12 +223,13 @@ export const createGitStatusProcedures = () => {
 		 * per repo (worktrees share remote-tracking refs) and stamps
 		 * `lastFetchedAt` on all of that repo's workspaces. Returns the ids of
 		 * workspaces whose repo was successfully fetched so callers can refresh
-		 * ahead/behind counts.
+		 * ahead/behind counts. Pass `staleMs: 0` to force-fetch every repo
+		 * regardless of when it was last fetched (e.g. a manual "Fetch All").
 		 */
 		autoFetchStaleWorkspaces: publicProcedure
 			.input(
 				z
-					.object({ staleMs: z.number().int().positive().optional() })
+					.object({ staleMs: z.number().int().nonnegative().optional() })
 					.optional(),
 			)
 			.mutation(async ({ input }) => {
@@ -252,32 +258,47 @@ export const createGitStatusProcedures = () => {
 					}
 				}
 
-				const fetchedWorkspaceIds: string[] = [];
-				for (const {
-					project,
-					workspaces: repoWorkspaces,
-				} of byProject.values()) {
-					const newestFetch = repoWorkspaces.reduce(
-						(max, w) => Math.max(max, w.lastFetchedAt ?? 0),
-						0,
-					);
-					if (newestFetch > threshold) continue;
+				const staleEntries = Array.from(byProject.values()).filter(
+					({ workspaces: repoWorkspaces }) => {
+						const newestFetch = repoWorkspaces.reduce(
+							(max, w) => Math.max(max, w.lastFetchedAt ?? 0),
+							0,
+						);
+						return newestFetch <= threshold;
+					},
+				);
 
+				const total = staleEntries.length;
+				const fetchedWorkspaceIds: string[] = [];
+				gitBatchProgressEmitter.emit("progress", {
+					operation: "fetch",
+					done: 0,
+					total,
+				} satisfies GitBatchProgress);
+
+				for (const [
+					index,
+					{ project, workspaces: repoWorkspaces },
+				] of staleEntries.entries()) {
 					try {
 						await fetchRemote(project.mainRepoPath);
+						const ids = repoWorkspaces.map((w) => w.id);
+						localDb
+							.update(workspaces)
+							.set({ lastFetchedAt: now })
+							.where(inArray(workspaces.id, ids))
+							.run();
+						fetchedWorkspaceIds.push(...ids);
 					} catch {
 						// Offline or no remote — leave lastFetchedAt unchanged so we
 						// retry on the next tick.
-						continue;
+					} finally {
+						gitBatchProgressEmitter.emit("progress", {
+							operation: "fetch",
+							done: index + 1,
+							total,
+						} satisfies GitBatchProgress);
 					}
-
-					const ids = repoWorkspaces.map((w) => w.id);
-					localDb
-						.update(workspaces)
-						.set({ lastFetchedAt: now })
-						.where(inArray(workspaces.id, ids))
-						.run();
-					fetchedWorkspaceIds.push(...ids);
 				}
 
 				return { fetchedWorkspaceIds };
@@ -298,9 +319,8 @@ export const createGitStatusProcedures = () => {
 				.all();
 
 			const seenPaths = new Set<string>();
-			const pulled: string[] = [];
-			const skipped: { workspaceId: string; reason: PullAllSkipReason }[] = [];
-
+			const eligible: { workspace: SelectWorkspace; worktreePath: string }[] =
+				[];
 			for (const { workspace, project } of rows) {
 				if (project.isGitless) continue;
 
@@ -313,7 +333,19 @@ export const createGitStatusProcedures = () => {
 					continue;
 				}
 				seenPaths.add(worktreePath);
+				eligible.push({ workspace, worktreePath });
+			}
 
+			const total = eligible.length;
+			const pulled: string[] = [];
+			const skipped: { workspaceId: string; reason: PullAllSkipReason }[] = [];
+			gitBatchProgressEmitter.emit("progress", {
+				operation: "pull",
+				done: 0,
+				total,
+			} satisfies GitBatchProgress);
+
+			for (const [index, { workspace, worktreePath }] of eligible.entries()) {
 				const result = await pullWorktreeIfClean(worktreePath);
 				if (result.status === "pulled") {
 					pulled.push(workspace.id);
@@ -321,9 +353,26 @@ export const createGitStatusProcedures = () => {
 				} else {
 					skipped.push({ workspaceId: workspace.id, reason: result.reason });
 				}
+				gitBatchProgressEmitter.emit("progress", {
+					operation: "pull",
+					done: index + 1,
+					total,
+				} satisfies GitBatchProgress);
 			}
 
 			return { pulled, skipped };
+		}),
+
+		onGitBatchProgress: publicProcedure.subscription(() => {
+			return observable<GitBatchProgress>((emit) => {
+				const handler = (progress: GitBatchProgress) => {
+					emit.next(progress);
+				};
+				gitBatchProgressEmitter.on("progress", handler);
+				return () => {
+					gitBatchProgressEmitter.off("progress", handler);
+				};
+			});
 		}),
 
 		getGitHubStatus: publicProcedure

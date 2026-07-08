@@ -8,7 +8,6 @@ import { useAutoFetchBranches } from "../../hooks/useAutoFetchBranches";
 import { MultiDragPreview } from "./MultiDragPreview";
 import { PortsList } from "./PortsList";
 import { ProjectSection } from "./ProjectSection";
-import { PullAllButton } from "./PullAllButton";
 import { SetupScriptCard } from "./SetupScriptCard";
 import { SidebarDropZone } from "./SidebarDropZone";
 import { WorkspaceSidebarFooter } from "./WorkspaceSidebarFooter";
@@ -154,7 +153,6 @@ export function WorkspaceSidebar({
 
 	return (
 		<SidebarDropZone className="flex flex-col h-full bg-muted/45 dark:bg-muted/35">
-			<PullAllButton isCollapsed={isCollapsed} gitWorkspaces={gitWorkspaces} />
 			{/* biome-ignore lint/a11y/noStaticElementInteractions: mousedown on empty sidebar space clears selection */}
 			<div
 				className="flex-1 overflow-y-auto hide-scrollbar"
@@ -241,7 +239,10 @@ export function WorkspaceSidebar({
 				projectName={activeProjectName}
 			/>
 
-			<WorkspaceSidebarFooter isCollapsed={isCollapsed} />
+			<WorkspaceSidebarFooter
+				isCollapsed={isCollapsed}
+				gitWorkspaces={gitWorkspaces}
+			/>
 			<MultiDragPreview />
 		</SidebarDropZone>
 	);
