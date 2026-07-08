@@ -40,7 +40,7 @@ export function TopBar() {
 						projectId={workspace.project?.id}
 					/>
 				) : null}
-				{workspaceId && <SidebarControl />}
+				{workspaceId && !workspace?.project?.isGitless && <SidebarControl />}
 				{!isMac && <WindowControls />}
 			</div>
 		</div>

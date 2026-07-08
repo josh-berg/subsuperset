@@ -15,11 +15,13 @@ import { RightSidebar } from "../RightSidebar";
 interface WorkspaceLayoutProps {
 	defaultExternalApp?: ExternalApp | null;
 	onOpenInApp: () => void;
+	isGitless?: boolean;
 }
 
 export function WorkspaceLayout({
 	defaultExternalApp,
 	onOpenInApp,
+	isGitless = false,
 }: WorkspaceLayoutProps) {
 	useBrowserLifecycle();
 	const isSidebarOpen = useSidebarStore((s) => s.isSidebarOpen);
@@ -29,7 +31,7 @@ export function WorkspaceLayout({
 	const setIsResizing = useSidebarStore((s) => s.setIsResizing);
 	const currentMode = useSidebarStore((s) => s.currentMode);
 
-	const isExpanded = currentMode === SidebarMode.Changes;
+	const isExpanded = !isGitless && currentMode === SidebarMode.Changes;
 
 	return (
 		<ScrollProvider>
@@ -43,7 +45,7 @@ export function WorkspaceLayout({
 					/>
 				)}
 			</div>
-			{isSidebarOpen && (
+			{isSidebarOpen && !isGitless && (
 				<ResizablePanel
 					width={sidebarWidth}
 					onWidthChange={setSidebarWidth}

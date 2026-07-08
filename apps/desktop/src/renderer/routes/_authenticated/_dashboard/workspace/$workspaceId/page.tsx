@@ -337,11 +337,17 @@ function WorkspacePage() {
 		}
 	});
 
+	const isGitless = workspace?.project?.isGitless ?? false;
+
 	// Toggle changes sidebar (⌘L)
-	useHotkey("TOGGLE_SIDEBAR", () => toggleSidebar());
+	useHotkey("TOGGLE_SIDEBAR", () => {
+		if (isGitless) return;
+		toggleSidebar();
+	});
 
 	// Toggle expand/collapse sidebar (⌘⇧L)
 	useHotkey("TOGGLE_EXPAND_SIDEBAR", () => {
+		if (isGitless) return;
 		if (!isSidebarOpen) {
 			setSidebarOpen(true);
 			setSidebarMode(SidebarMode.Changes);
@@ -458,6 +464,7 @@ function WorkspacePage() {
 					<WorkspaceLayout
 						defaultExternalApp={resolvedDefaultApp}
 						onOpenInApp={handleOpenInApp}
+						isGitless={isGitless}
 					/>
 				)}
 			</div>

@@ -15,6 +15,7 @@ export function RightSidebar() {
 		{ enabled: !!workspaceId },
 	);
 	const worktreePath = workspace?.worktreePath;
+	const isGitless = workspace?.project?.isGitless ?? false;
 	const currentMode = useSidebarStore((s) => s.currentMode);
 	const isExpanded = currentMode === SidebarMode.Changes;
 
@@ -85,7 +86,7 @@ export function RightSidebar() {
 
 	return (
 		<aside className="h-full flex flex-col overflow-hidden">
-			{worktreePath && (
+			{worktreePath && !isGitless && (
 				<ChangesView
 					onFileOpen={handleFileOpen}
 					isExpandedView={isExpanded}
