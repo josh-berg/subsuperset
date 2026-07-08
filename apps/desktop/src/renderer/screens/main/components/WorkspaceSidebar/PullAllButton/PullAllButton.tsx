@@ -141,7 +141,11 @@ export function PullAllButton({
 
 	const isPending = mode === "pull" ? pullAll.isPending : fetchAll.isPending;
 	const handleClick = () =>
-		mode === "pull" ? pullAll.mutate() : fetchAll.mutate({ staleMs: 0 });
+		mode === "pull"
+			? pullAll.mutate({
+					workspaceIds: needsPullWorkspaces.map((w) => w.workspaceId),
+				})
+			: fetchAll.mutate({ staleMs: 0 });
 
 	const Icon = isPending
 		? LuLoaderCircle

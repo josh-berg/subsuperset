@@ -305,63 +305,74 @@ export const createGitStatusProcedures = () => {
 			}),
 
 		/**
-		 * Pulls every git-backed workspace whose worktree is clean, skipping (not
-		 * force-pulling) any that are dirty, have no upstream, or hit a rebase
-		 * conflict. Dedupes by resolved checkout path since branch-type
-		 * workspaces share their project's `mainRepoPath`.
+		 * Pulls the given git-backed workspaces (or every one, if `workspaceIds`
+		 * is omitted) whose worktree is clean, skipping (not force-pulling) any
+		 * that are dirty, have no upstream, or hit a rebase conflict. Dedupes by
+		 * resolved checkout path since branch-type workspaces share their
+		 * project's `mainRepoPath`.
 		 */
-		pullAllWorkspaces: publicProcedure.mutation(async () => {
-			const rows = localDb
-				.select({ workspace: workspaces, project: projects })
-				.from(workspaces)
-				.innerJoin(projects, eq(workspaces.projectId, projects.id))
-				.where(isNull(workspaces.deletingAt))
-				.all();
+		pullAllWorkspaces: publicProcedure
+			.input(
+				z.object({ workspaceIds: z.array(z.string()).optional() }).optional(),
+			)
+			.mutation(async ({ input }) => {
+				const workspaceIds = input?.workspaceIds
+					? new Set(input.workspaceIds)
+					: null;
 
-			const seenPaths = new Set<string>();
-			const eligible: { workspace: SelectWorkspace; worktreePath: string }[] =
-				[];
-			for (const { workspace, project } of rows) {
-				if (project.isGitless) continue;
+				const rows = localDb
+					.select({ workspace: workspaces, project: projects })
+					.from(workspaces)
+					.innerJoin(projects, eq(workspaces.projectId, projects.id))
+					.where(isNull(workspaces.deletingAt))
+					.all();
 
-				const worktreePath = resolveWorkspaceCheckoutPath({
-					workspace,
-					project,
-				});
+				const seenPaths = new Set<string>();
+				const eligible: { workspace: SelectWorkspace; worktreePath: string }[] =
+					[];
+				for (const { workspace, project } of rows) {
+					if (project.isGitless) continue;
+					if (workspaceIds && !workspaceIds.has(workspace.id)) continue;
 
-				if (!existsSync(worktreePath) || seenPaths.has(worktreePath)) {
-					continue;
+					const worktreePath = resolveWorkspaceCheckoutPath({
+						workspace,
+						project,
+					});
+
+					if (!existsSync(worktreePath) || seenPaths.has(worktreePath)) {
+						continue;
+					}
+					seenPaths.add(worktreePath);
+					eligible.push({ workspace, worktreePath });
 				}
-				seenPaths.add(worktreePath);
-				eligible.push({ workspace, worktreePath });
-			}
 
-			const total = eligible.length;
-			const pulled: string[] = [];
-			const skipped: { workspaceId: string; reason: PullAllSkipReason }[] = [];
-			gitBatchProgressEmitter.emit("progress", {
-				operation: "pull",
-				done: 0,
-				total,
-			} satisfies GitBatchProgress);
-
-			for (const [index, { workspace, worktreePath }] of eligible.entries()) {
-				const result = await pullWorktreeIfClean(worktreePath);
-				if (result.status === "pulled") {
-					pulled.push(workspace.id);
-					clearStatusCacheForWorktree(worktreePath);
-				} else {
-					skipped.push({ workspaceId: workspace.id, reason: result.reason });
-				}
+				const total = eligible.length;
+				const pulled: string[] = [];
+				const skipped: { workspaceId: string; reason: PullAllSkipReason }[] =
+					[];
 				gitBatchProgressEmitter.emit("progress", {
 					operation: "pull",
-					done: index + 1,
+					done: 0,
 					total,
 				} satisfies GitBatchProgress);
-			}
 
-			return { pulled, skipped };
-		}),
+				for (const [index, { workspace, worktreePath }] of eligible.entries()) {
+					const result = await pullWorktreeIfClean(worktreePath);
+					if (result.status === "pulled") {
+						pulled.push(workspace.id);
+						clearStatusCacheForWorktree(worktreePath);
+					} else {
+						skipped.push({ workspaceId: workspace.id, reason: result.reason });
+					}
+					gitBatchProgressEmitter.emit("progress", {
+						operation: "pull",
+						done: index + 1,
+						total,
+					} satisfies GitBatchProgress);
+				}
+
+				return { pulled, skipped };
+			}),
 
 		onGitBatchProgress: publicProcedure.subscription(() => {
 			return observable<GitBatchProgress>((emit) => {
