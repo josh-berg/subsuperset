@@ -1,4 +1,4 @@
-import { stat, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { projects } from "@superset/local-db";
 import { eq } from "drizzle-orm";
@@ -9,28 +9,15 @@ import {
 	buildChildRepoContextMarkdown,
 	buildFeatureProjectContextMarkdown,
 	MULTI_REPO_CONTEXT_LOCAL_FILE,
-	MULTI_REPO_CONTEXT_SHARED_FILE,
-	SEED_ONCE_NOTE,
 } from "./multi-repo-context";
 
-async function fileExists(path: string): Promise<boolean> {
-	try {
-		await stat(path);
-		return true;
-	} catch {
-		return false;
-	}
-}
-
 /**
- * Regenerate the auto-injected multi-repo context files for a feature project:
- * `CLAUDE.local.md` (git-excluded, always overwritten) into the feature
- * project's folder and every child repo, and best-effort `AGENTS.md` in child
- * repos that don't already have one (left alone once it exists, so we never
- * clobber user edits or repo conventions).
+ * Regenerate the auto-injected `CLAUDE.local.md` multi-repo context file
+ * (git-excluded, always overwritten) into the feature project's folder and
+ * every child repo.
  *
  * Called whenever feature-project repo membership changes (create/addRepo/
- * removeRepo) so the files are correct on disk the moment a repo appears,
+ * removeRepo) so the file is correct on disk the moment a repo appears,
  * regardless of which UI action a user later takes to launch an agent there.
  */
 export async function regenerateMultiRepoContext(
@@ -86,14 +73,6 @@ export async function regenerateMultiRepoContext(
 				child.mainRepoPath,
 				MULTI_REPO_CONTEXT_LOCAL_FILE,
 			);
-
-			const agentsMdPath = join(
-				child.mainRepoPath,
-				MULTI_REPO_CONTEXT_SHARED_FILE,
-			);
-			if (!(await fileExists(agentsMdPath))) {
-				await writeFile(agentsMdPath, childContent + SEED_ONCE_NOTE, "utf-8");
-			}
 		}),
 	);
 

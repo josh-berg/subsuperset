@@ -1,5 +1,4 @@
 export const MULTI_REPO_CONTEXT_LOCAL_FILE = "CLAUDE.local.md";
-export const MULTI_REPO_CONTEXT_SHARED_FILE = "AGENTS.md";
 
 const SEPARATE_REPOS_NOTE =
 	"Each repo listed above (including this one, if applicable) is a separate\n" +
@@ -10,13 +9,6 @@ export const AUTO_REGENERATED_NOTE =
 	"\n---\n" +
 	"This file is regenerated automatically whenever a repo is added to or\n" +
 	"removed from this project. Manual edits will be overwritten.\n";
-
-export const SEED_ONCE_NOTE =
-	"\n---\n" +
-	"This file was seeded once by Superset when this repo joined the\n" +
-	"multi-repo project. It is not regenerated automatically — edit it\n" +
-	"freely, but note the sibling repo list above may go stale if repos are\n" +
-	"later added to or removed from the project.\n";
 
 interface RepoInfo {
 	name: string;
