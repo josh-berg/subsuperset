@@ -1,7 +1,7 @@
 import { toast } from "@superset/ui/sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@superset/ui/tooltip";
 import { cn } from "@superset/ui/utils";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { LuArrowDown, LuLoaderCircle, LuRefreshCw } from "react-icons/lu";
 import { electronTrpc } from "renderer/lib/electron-trpc";
 import { STROKE_WIDTH } from "../constants";
@@ -122,9 +122,24 @@ export function PullAllButton({
 		},
 	);
 
+	// Tracked from the mutations themselves (not the query-derived `mode` below)
+	// so an unrelated background auto-fetch invalidating `getAheadBehindBatch`
+	// mid-pull can't flip which operation we think is running.
+	const activeOperation: "pull" | "fetch" | null = pullAll.isPending
+		? "pull"
+		: fetchAll.isPending
+			? "fetch"
+			: null;
+	const activeOperationRef = useRef(activeOperation);
+	activeOperationRef.current = activeOperation;
+
 	const [progress, setProgress] = useState<GitBatchProgress | null>(null);
 	electronTrpc.workspaces.onGitBatchProgress.useSubscription(undefined, {
-		onData: setProgress,
+		// The progress emitter is shared with the background auto-fetch poller,
+		// so only accept events for the operation we ourselves triggered.
+		onData: (data) => {
+			if (data.operation === activeOperationRef.current) setProgress(data);
+		},
 	});
 
 	if (gitWorkspaces.length === 0) {
@@ -139,13 +154,17 @@ export function PullAllButton({
 	const needsPullCount = needsPullWorkspaces.length;
 	const mode = needsPullCount > 0 ? "pull" : "fetch";
 
-	const isPending = mode === "pull" ? pullAll.isPending : fetchAll.isPending;
-	const handleClick = () =>
-		mode === "pull"
-			? pullAll.mutate({
-					workspaceIds: needsPullWorkspaces.map((w) => w.workspaceId),
-				})
-			: fetchAll.mutate({ staleMs: 0 });
+	const isPending = activeOperation !== null;
+	const handleClick = () => {
+		setProgress(null);
+		if (mode === "pull") {
+			pullAll.mutate({
+				workspaceIds: needsPullWorkspaces.map((w) => w.workspaceId),
+			});
+		} else {
+			fetchAll.mutate({ staleMs: 0 });
+		}
+	};
 
 	const Icon = isPending
 		? LuLoaderCircle
@@ -154,12 +173,12 @@ export function PullAllButton({
 			: LuRefreshCw;
 
 	const showProgress =
-		isPending &&
+		activeOperation !== null &&
 		progress !== null &&
-		progress.operation === mode &&
+		progress.operation === activeOperation &&
 		progress.total > 0;
 	const progressText = showProgress
-		? `${mode === "pull" ? "Pulling" : "Fetching"} ${progress?.done}/${progress?.total}`
+		? `${activeOperation === "pull" ? "Pulling" : "Fetching"} ${progress?.done}/${progress?.total}`
 		: null;
 
 	const displayedWorkspaces = needsPullWorkspaces.slice(0, MAX_TOOLTIP_NAMES);
