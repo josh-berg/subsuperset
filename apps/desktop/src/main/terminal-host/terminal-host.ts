@@ -10,6 +10,7 @@ import type {
 	KillAllRequest,
 	KillRequest,
 	ListSessionsResponse,
+	ResetMouseTrackingRequest,
 	ResizeRequest,
 	SignalRequest,
 	WriteRequest,
@@ -255,6 +256,16 @@ export class TerminalHost {
 		}
 
 		session.sendSignal(signal);
+		return { success: true };
+	}
+
+	resetMouseTrackingModes(request: ResetMouseTrackingRequest): EmptyResponse {
+		const session = this.sessions.get(request.sessionId);
+		if (!session || !session.isAttachable) {
+			return { success: true };
+		}
+
+		session.resetMouseTrackingModes();
 		return { success: true };
 	}
 

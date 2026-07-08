@@ -11,7 +11,7 @@ import {
 } from "../../terminal-host/client";
 import type { ListSessionsResponse } from "../../terminal-host/types";
 import { raceWithAbort, throwIfAborted } from "../abort";
-import { claudeDetector } from "../claude-detector";
+import { type ClaudeChangeEvent, claudeDetector } from "../claude-detector";
 import { buildTerminalEnv, getDefaultShell } from "../env";
 import { TerminalKilledError } from "../errors";
 import { portManager } from "../port-manager";
@@ -53,6 +53,17 @@ export class DaemonTerminalManager extends EventEmitter {
 	constructor() {
 		super();
 		this.initializeClient();
+
+		// The `claude` CLI (Ink-based TUI) enables mouse tracking for scroll
+		// support. If it crashes/exits without disabling that mode itself, the
+		// pane's terminal is left thinking mouse tracking is still active
+		// indefinitely. Proactively correct it whenever claude disappears from
+		// a pane's process tree, regardless of how it exited.
+		claudeDetector.on("change", (event: ClaudeChangeEvent) => {
+			if (!event.running) {
+				this.resetMouseTrackingModes(event.paneId);
+			}
+		});
 	}
 
 	private recordKilledSession(paneId: string): void {
@@ -707,6 +718,25 @@ export class DaemonTerminalManager extends EventEmitter {
 		this.client.signal({ sessionId: paneId, signal }).catch((error) => {
 			console.warn(
 				`[DaemonTerminalManager] Failed to send signal ${signal} to ${paneId}:`,
+				error,
+			);
+		});
+	}
+
+	/**
+	 * Disable mouse-tracking modes for a session. Called when the `claude`
+	 * detector reports the CLI has disappeared from a pane's process tree,
+	 * in case it crashed without disabling mouse tracking itself — otherwise
+	 * the pane's xterm keeps encoding mouse movement as escape sequences that
+	 * a plain shell just echoes back as literal text.
+	 */
+	private resetMouseTrackingModes(paneId: string): void {
+		const session = this.sessions.get(paneId);
+		if (!session || !session.isAlive) return;
+
+		this.client.resetMouseTracking({ sessionId: paneId }).catch((error) => {
+			console.warn(
+				`[DaemonTerminalManager] Failed to reset mouse tracking for ${paneId}:`,
 				error,
 			);
 		});

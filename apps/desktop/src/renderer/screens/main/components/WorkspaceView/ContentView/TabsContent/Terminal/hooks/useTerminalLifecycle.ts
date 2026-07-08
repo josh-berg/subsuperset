@@ -10,7 +10,11 @@ import { killTerminalForPane } from "renderer/stores/tabs/utils/terminal-cleanup
 import { isTerminalAttachCanceledMessage } from "../attach-cancel";
 import { scheduleTerminalAttach } from "../attach-scheduler";
 import { isCommandEchoed, sanitizeForTitle } from "../commandBuffer";
-import { DEBUG_TERMINAL, FIRST_RENDER_RESTORE_FALLBACK_MS } from "../config";
+import {
+	DEBUG_TERMINAL,
+	FIRST_RENDER_RESTORE_FALLBACK_MS,
+	MODE_RESYNC_IDLE_THRESHOLD_MS,
+} from "../config";
 import {
 	createTerminalInstance,
 	setupClickToMoveCursor,
@@ -837,16 +841,110 @@ export function useTerminalLifecycle({
 			reattachRecovery.pendingFrame = null;
 		};
 
+		// If the pane was backgrounded long enough that a stream stall could have
+		// gone unnoticed (e.g. the IPC subscription silently drops data while
+		// hidden), the daemon's real terminal modes (mouse tracking, bracketed
+		// paste, etc.) can drift from what this xterm instance still believes is
+		// active. A stuck "mouse tracking on" mode makes every mouse movement
+		// send raw escape sequences into the pty, which a plain shell just
+		// echoes back as garbage text. Re-fetching an attach snapshot is a cheap,
+		// idempotent daemon call that returns the true current mode state so we
+		// can correct any drift instead of only doing a cosmetic re-render.
+		let inactiveSince: number | null =
+			document.hidden || !document.hasFocus() ? Date.now() : null;
+		let modeResyncInFlight = false;
+
+		const shouldSkipModeResync = () =>
+			isUnmounted ||
+			isExitedRef.current ||
+			connectionErrorRef.current !== null ||
+			!isStreamReadyRef.current ||
+			attachInFlightByPane.has(paneId) ||
+			modeResyncInFlight;
+
+		const runModeResync = () => {
+			if (shouldSkipModeResync()) return;
+			modeResyncInFlight = true;
+			createOrAttachRef.current(
+				{
+					paneId,
+					requestId: nextAttachRequestId(),
+					tabId: tabIdRef.current,
+					workspaceId,
+					cols: xterm.cols,
+					rows: xterm.rows,
+				},
+				{
+					onSuccess: (result) => {
+						if (isUnmounted || xtermRef.current !== xterm) return;
+						if (result.isColdRestore) {
+							// The daemon lost the underlying session while we were away;
+							// fall back to the normal restore path to rebuild content.
+							setIsRestoredMode(true);
+							setRestoredCwd(result.previousCwd || null);
+							pendingInitialStateRef.current = result;
+							didFirstRenderRef.current = true;
+							maybeApplyInitialState();
+							return;
+						}
+						const snapshot = result.snapshot;
+						if (!snapshot) return;
+						isAlternateScreenRef.current = !!snapshot.modes.alternateScreen;
+						isBracketedPasteRef.current = !!snapshot.modes.bracketedPaste;
+						if (snapshot.rehydrateSequences) {
+							xterm.write(snapshot.rehydrateSequences);
+						}
+						if (DEBUG_TERMINAL) {
+							console.log(
+								`[Terminal] Mode resync applied after idle background: ${paneId}`,
+							);
+						}
+					},
+					onError: (error) => {
+						if (isTerminalAttachCanceledMessage(error.message)) return;
+						console.warn(
+							`[Terminal] Mode resync failed for ${paneId}:`,
+							error.message,
+						);
+					},
+					onSettled: () => {
+						modeResyncInFlight = false;
+					},
+				},
+			);
+		};
+
+		const markInactive = () => {
+			if (inactiveSince === null) inactiveSince = Date.now();
+		};
+
+		const markActiveAndRecover = (forceResize: boolean) => {
+			const inactiveDuration =
+				inactiveSince !== null ? Date.now() - inactiveSince : 0;
+			inactiveSince = null;
+			if (inactiveDuration >= MODE_RESYNC_IDLE_THRESHOLD_MS) {
+				runModeResync();
+			}
+			scheduleReattachRecovery(forceResize);
+		};
+
 		const handleVisibilityChange = () => {
-			if (document.hidden) return;
-			scheduleReattachRecovery(isFocusedRef.current);
+			if (document.hidden) {
+				markInactive();
+				return;
+			}
+			markActiveAndRecover(isFocusedRef.current);
 		};
 		const handleWindowFocus = () => {
-			scheduleReattachRecovery(isFocusedRef.current);
+			markActiveAndRecover(isFocusedRef.current);
+		};
+		const handleWindowBlur = () => {
+			markInactive();
 		};
 
 		document.addEventListener("visibilitychange", handleVisibilityChange);
 		window.addEventListener("focus", handleWindowFocus);
+		window.addEventListener("blur", handleWindowBlur);
 
 		const isPaneDestroyedInStore = () =>
 			isPaneDestroyed(useTabsStore.getState().panes, paneId);
@@ -872,6 +970,7 @@ export function useTerminalLifecycle({
 			cancelReattachRecovery();
 			document.removeEventListener("visibilitychange", handleVisibilityChange);
 			window.removeEventListener("focus", handleWindowFocus);
+			window.removeEventListener("blur", handleWindowBlur);
 			inputDisposable.dispose();
 			keyDisposable.dispose();
 			titleDisposable.dispose();

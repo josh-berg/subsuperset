@@ -80,6 +80,14 @@ const SHELL_READY_TIMEOUT_MS = 15_000;
 const SHELLS_WITH_READY_MARKER = new Set(["zsh", "bash", "fish"]);
 
 /**
+ * DECRST sequences disabling every mouse-tracking/encoding mode we track
+ * (X10, normal, highlight, button-event, any-event, UTF-8, SGR). See
+ * {@link Session.resetMouseTrackingModes}.
+ */
+const MOUSE_TRACKING_RESET_SEQUENCE =
+	"\x1b[?9l\x1b[?1000l\x1b[?1001l\x1b[?1002l\x1b[?1003l\x1b[?1005l\x1b[?1006l";
+
+/**
  * Shell readiness lifecycle:
  * - `pending`     — shell is initializing; user writes are buffered, escape sequences dropped
  * - `ready`       — marker detected; buffered writes have been flushed
@@ -901,6 +909,28 @@ export class Session {
 	 */
 	clearScrollback(): void {
 		this.emulator.clear();
+	}
+
+	/**
+	 * Disable mouse-tracking DECSET modes on the emulator and broadcast the
+	 * correction to attached clients as if the foreground program had sent it.
+	 *
+	 * Used when a program known to enable mouse tracking (e.g. the `claude`
+	 * CLI) disappears from this session's process tree without itself
+	 * disabling the mode first (crash / SIGKILL). Left uncorrected, the
+	 * client's xterm instance keeps encoding mouse movement as SGR escape
+	 * sequences that a plain shell just echoes back as literal text.
+	 * Disabling an already-off mode is a no-op, so this is safe to call
+	 * unconditionally.
+	 */
+	resetMouseTrackingModes(): void {
+		if (this.disposed) return;
+		const data = MOUSE_TRACKING_RESET_SEQUENCE;
+		this.enqueueEmulatorWrite(data);
+		this.broadcastEvent("data", {
+			type: "data",
+			data,
+		} satisfies TerminalDataEvent);
 	}
 
 	/**

@@ -44,6 +44,7 @@ import {
 	type KillRequest,
 	type ListSessionsResponse,
 	PROTOCOL_VERSION,
+	type ResetMouseTrackingRequest,
 	type ResizeRequest,
 	type ShutdownRequest,
 	type SignalRequest,
@@ -1485,6 +1486,16 @@ export class TerminalHostClient extends EventEmitter {
 	async signal(request: SignalRequest): Promise<EmptyResponse> {
 		await this.ensureConnected();
 		return this.sendRequest<EmptyResponse>("signal", request);
+	}
+
+	/**
+	 * Disable mouse-tracking DECSET modes on a terminal session.
+	 */
+	async resetMouseTracking(
+		request: ResetMouseTrackingRequest,
+	): Promise<EmptyResponse> {
+		await this.ensureConnected();
+		return this.sendRequest<EmptyResponse>("resetMouseTracking", request);
 	}
 
 	/**

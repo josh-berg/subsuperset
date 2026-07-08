@@ -11,6 +11,14 @@ export const TERMINAL_THEME: ITerminalOptions["theme"] = undefined;
 // Fallback timeout for first render (in case xterm doesn't emit onRender)
 export const FIRST_RENDER_RESTORE_FALLBACK_MS = 250;
 
+// If a pane was hidden/backgrounded for at least this long, a stream stall
+// (e.g. IPC subscription silently dying while backgrounded) could have let
+// the daemon's real terminal modes (mouse tracking, bracketed paste, etc.)
+// drift from what the renderer's xterm instance still thinks is active.
+// On visibility/focus regain past this threshold we re-fetch the daemon's
+// mode state and correct xterm rather than only re-rendering cosmetically.
+export const MODE_RESYNC_IDLE_THRESHOLD_MS = 45_000;
+
 // Debug logging for terminal lifecycle (enable via localStorage)
 // Run in DevTools console: localStorage.setItem('SUPERSET_TERMINAL_DEBUG', '1')
 export const DEBUG_TERMINAL =

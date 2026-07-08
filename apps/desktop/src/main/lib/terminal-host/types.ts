@@ -217,6 +217,15 @@ export interface SignalRequest {
 }
 
 /**
+ * Disable mouse-tracking DECSET modes on a terminal session, e.g. after
+ * detecting the program that enabled them (the `claude` CLI) has exited
+ * without disabling them itself.
+ */
+export interface ResetMouseTrackingRequest {
+	sessionId: string;
+}
+
+/**
  * Kill a terminal session
  */
 export interface KillRequest {

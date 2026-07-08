@@ -168,3 +168,104 @@ describe("scheduleReattachRecovery throttle — issue #1873", () => {
 		expect(calls).toBe(1);
 	});
 });
+
+// ---------------------------------------------------------------------------
+// Mode resync on idle background return
+//
+// Root cause: a stream stall while a pane is hidden/unfocused (e.g. the IPC
+// subscription silently drops data) can leave xterm believing a mode like
+// mouse tracking is still enabled after the real pty-side program already
+// disabled it. Every mouse movement then sends raw escape sequences into a
+// plain shell, which just echoes them back as garbage text. Only a full
+// unmount/remount (fresh createOrAttach) fixed it before this change.
+//
+// Fix: `markActiveAndRecover` in useTerminalLifecycle.ts tracks how long the
+// pane was inactive (hidden or unfocused) and triggers a mode resync when
+// that exceeds MODE_RESYNC_IDLE_THRESHOLD_MS, instead of only doing the
+// cosmetic reattach recovery.
+// ---------------------------------------------------------------------------
+
+const MODE_RESYNC_IDLE_THRESHOLD_MS = 45_000;
+
+/** Mirrors the inactiveSince/markInactive/markActiveAndRecover logic in
+ * useTerminalLifecycle.ts, with an injectable clock so tests don't need to
+ * sleep for real past the 45s threshold. */
+function makeInactivityTracker(
+	runModeResync: () => void,
+	now: () => number = Date.now,
+) {
+	let inactiveSince: number | null = null;
+
+	const markInactive = () => {
+		if (inactiveSince === null) inactiveSince = now();
+	};
+
+	const markActiveAndRecover = () => {
+		const inactiveDuration = inactiveSince !== null ? now() - inactiveSince : 0;
+		inactiveSince = null;
+		if (inactiveDuration >= MODE_RESYNC_IDLE_THRESHOLD_MS) {
+			runModeResync();
+		}
+	};
+
+	return { markInactive, markActiveAndRecover };
+}
+
+describe("mode resync on idle background return", () => {
+	it("does not resync when the pane was hidden only briefly", () => {
+		let calls = 0;
+		let clock = 0;
+		const { markInactive, markActiveAndRecover } = makeInactivityTracker(
+			() => {
+				calls++;
+			},
+			() => clock,
+		);
+
+		markInactive();
+		clock += 1_000; // returned after 1s — well under the threshold
+		markActiveAndRecover();
+
+		expect(calls).toBe(0);
+	});
+
+	it("resyncs modes when the pane was hidden past the idle threshold", () => {
+		let calls = 0;
+		let clock = 0;
+		const { markInactive, markActiveAndRecover } = makeInactivityTracker(
+			() => {
+				calls++;
+			},
+			() => clock,
+		);
+
+		markInactive();
+		clock += MODE_RESYNC_IDLE_THRESHOLD_MS + 1;
+		markActiveAndRecover();
+
+		expect(calls).toBe(1);
+	});
+
+	it("resets the inactivity window after each recovery check", () => {
+		let calls = 0;
+		let clock = 0;
+		const { markInactive, markActiveAndRecover } = makeInactivityTracker(
+			() => {
+				calls++;
+			},
+			() => clock,
+		);
+
+		markInactive();
+		clock += 1_000;
+		markActiveAndRecover();
+		expect(calls).toBe(0);
+
+		// A second, brief hide/show cycle right after should also not resync —
+		// the window must have been cleared, not left stuck accumulating time.
+		markInactive();
+		clock += 1_000;
+		markActiveAndRecover();
+		expect(calls).toBe(0);
+	});
+});

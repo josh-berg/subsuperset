@@ -39,6 +39,7 @@ import {
 	type KillAllRequest,
 	type KillRequest,
 	PROTOCOL_VERSION,
+	type ResetMouseTrackingRequest,
 	type ResizeRequest,
 	type ShutdownRequest,
 	type SignalRequest,
@@ -483,6 +484,26 @@ const handlers: Record<string, RequestHandler> = {
 
 		const request = payload as SignalRequest;
 		const response = terminalHost.signal(request);
+		sendSuccess(socket, id, response);
+	},
+
+	resetMouseTracking: (socket, id, payload, clientState) => {
+		if (!clientState.authenticated) {
+			sendError(socket, id, "NOT_AUTHENTICATED", "Must authenticate first");
+			return;
+		}
+		if (clientState.role !== "control") {
+			sendError(
+				socket,
+				id,
+				"INVALID_ROLE",
+				"resetMouseTracking requires control",
+			);
+			return;
+		}
+
+		const request = payload as ResetMouseTrackingRequest;
+		const response = terminalHost.resetMouseTrackingModes(request);
 		sendSuccess(socket, id, response);
 	},
 

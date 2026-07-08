@@ -264,6 +264,52 @@ describe("Terminal Host Session shell args", () => {
 	});
 });
 
+describe("Terminal Host Session mouse tracking reset", () => {
+	it("disables mouse tracking modes and broadcasts the correction to attached clients", () => {
+		const session = new Session({
+			sessionId: "session-reset-mouse-tracking",
+			workspaceId: "workspace-1",
+			paneId: "pane-1",
+			tabId: "tab-1",
+			cols: 80,
+			rows: 24,
+			cwd: "/tmp",
+			shell: "/bin/zsh",
+		});
+
+		const internals = session as unknown as {
+			enqueueEmulatorWrite: (data: string) => void;
+			processEmulatorWriteQueue: () => void;
+		};
+
+		const writes: string[] = [];
+		const socket = {
+			write(message: string) {
+				writes.push(message);
+				return true;
+			},
+		} as unknown as import("node:net").Socket;
+
+		// Simulate a program (e.g. the `claude` CLI) enabling mouse tracking,
+		// as if it had crashed afterwards without disabling it again.
+		internals.enqueueEmulatorWrite("\x1b[?1000h\x1b[?1006h");
+		internals.processEmulatorWriteQueue();
+		expect(session.getSnapshot().modes.mouseTrackingNormal).toBe(true);
+		expect(session.getSnapshot().modes.mouseSgr).toBe(true);
+
+		return session.attach(socket).then(() => {
+			session.resetMouseTrackingModes();
+			internals.processEmulatorWriteQueue();
+
+			expect(session.getSnapshot().modes.mouseTrackingNormal).toBe(false);
+			expect(session.getSnapshot().modes.mouseSgr).toBe(false);
+			expect(writes.some((message) => message.includes("\\u001b[?1000l"))).toBe(
+				true,
+			);
+		});
+	});
+});
+
 describe("Terminal Host Session emulator backlog backpressure", () => {
 	beforeEach(() => {
 		fakeChildProcess = new FakeChildProcess();
