@@ -2,12 +2,12 @@ import { useEffect, useRef } from "react";
 import { electronTrpc } from "renderer/lib/electron-trpc";
 
 /** How often we check for repos that are due for a background fetch. */
-const POLL_INTERVAL_MS = 60_000;
+const POLL_INTERVAL_MS = 5 * 60 * 1000;
 
 /**
  * Drives background `git fetch` so ahead/behind ("needs pull") indicators stay
  * fresh across the sidebar. The main process only fetches repos that haven't
- * been fetched in the last 10 minutes, so polling here is cheap.
+ * been fetched in the last 15 minutes, so polling here is cheap.
  *
  * To save network/battery the loop only runs while the window is visible, and
  * catches up immediately when the window regains focus. Mount once.

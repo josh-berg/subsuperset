@@ -33,8 +33,8 @@ import {
 	refreshDefaultBranch,
 } from "../utils/git";
 
-/** Default staleness window for background auto-fetch: 10 minutes. */
-const AUTO_FETCH_STALE_MS = 10 * 60 * 1000;
+/** Default staleness window for background auto-fetch: 15 minutes. */
+const AUTO_FETCH_STALE_MS = 15 * 60 * 1000;
 
 import {
 	clearGitHubCachesForWorktree,
