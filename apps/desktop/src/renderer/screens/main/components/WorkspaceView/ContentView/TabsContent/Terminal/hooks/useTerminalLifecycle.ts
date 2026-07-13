@@ -14,9 +14,11 @@ import {
 	DEBUG_TERMINAL,
 	FIRST_RENDER_RESTORE_FALLBACK_MS,
 	MODE_RESYNC_IDLE_THRESHOLD_MS,
+	RESIZE_DEBOUNCE_MS,
 } from "../config";
 import {
 	createTerminalInstance,
+	loadRenderer,
 	setupClickToMoveCursor,
 	setupCopyHandler,
 	setupFocusListener,
@@ -841,6 +843,65 @@ export function useTerminalLifecycle({
 			reattachRecovery.pendingFrame = null;
 		};
 
+		// Switching workspaces/tabs unmounts and remounts the terminal (only the
+		// active tab is rendered), so on return xterm is re-created from scratch
+		// while the mosaic container is still transitioning to its final size.
+		// The WebGL renderer (xterm.js 6) loads a frame after xterm.open() and
+		// can build its render layers before the container has laid out, leaving
+		// the terminal blank or only partially painted. A plain refresh() repaints
+		// into that already-broken canvas and doesn't help — only rebuilding the
+		// render layers at the correct size does, which is why resizing the OS
+		// window (a cols/rows change that forces xterm to rebuild the WebGL
+		// layers) was the manual fix. Window focus/visibility events trigger
+		// runReattachRecovery, but in-app navigation fires none of them, so once
+		// the container is actually renderable after mount, reload the WebGL
+		// renderer (dispose + recreate at the now-correct size) and force a paint.
+		// Retry across frames until it lays out, then run a second pass to catch
+		// any late settle. The DOM renderer needs no rebuild, so skip it there.
+		let mountRecoveryFrame: number | null = null;
+		let mountRecoverySettle: ReturnType<typeof setTimeout> | null = null;
+		let mountRecoveryAttempts = 0;
+		const MAX_MOUNT_RECOVERY_ATTEMPTS = 60; // ~1s at 60fps before giving up
+
+		const rebuildRenderer = () => {
+			const rendererHolder = rendererRef.current;
+			if (!rendererHolder || rendererHolder.current.kind !== "webgl") return;
+			try {
+				rendererHolder.current.dispose();
+				rendererHolder.current = loadRenderer(xterm);
+			} catch (error) {
+				console.warn("[Terminal] Renderer rebuild on mount failed:", error);
+			}
+		};
+
+		const runMountRecovery = () => {
+			mountRecoveryFrame = null;
+			if (isUnmounted || xtermRef.current !== xterm) return;
+			if (!isCurrentTerminalRenderable()) {
+				if (mountRecoveryAttempts++ >= MAX_MOUNT_RECOVERY_ATTEMPTS) return;
+				mountRecoveryFrame = requestAnimationFrame(runMountRecovery);
+				return;
+			}
+			rebuildRenderer();
+			runReattachRecovery(true);
+			mountRecoverySettle = setTimeout(() => {
+				mountRecoverySettle = null;
+				if (isUnmounted || xtermRef.current !== xterm) return;
+				runReattachRecovery(true);
+			}, RESIZE_DEBOUNCE_MS);
+		};
+		const cancelMountRecovery = () => {
+			if (mountRecoveryFrame !== null) {
+				cancelAnimationFrame(mountRecoveryFrame);
+				mountRecoveryFrame = null;
+			}
+			if (mountRecoverySettle !== null) {
+				clearTimeout(mountRecoverySettle);
+				mountRecoverySettle = null;
+			}
+		};
+		mountRecoveryFrame = requestAnimationFrame(runMountRecovery);
+
 		// If the pane was backgrounded long enough that a stream stall could have
 		// gone unnoticed (e.g. the IPC subscription silently drops data while
 		// hidden), the daemon's real terminal modes (mouse tracking, bracketed
@@ -968,6 +1029,7 @@ export function useTerminalLifecycle({
 			clearAttachInFlight(paneId, cleanupAttachId);
 			if (firstRenderFallback) clearTimeout(firstRenderFallback);
 			cancelReattachRecovery();
+			cancelMountRecovery();
 			document.removeEventListener("visibilitychange", handleVisibilityChange);
 			window.removeEventListener("focus", handleWindowFocus);
 			window.removeEventListener("blur", handleWindowBlur);
