@@ -117,6 +117,13 @@ export function loadRenderer(xterm: XTerm): TerminalRenderer {
 			console.warn(
 				"[Terminal] WebGL context lost, falling back to DOM renderer",
 			);
+			// Prefer DOM for all subsequent renderer loads this session. Without
+			// this, remounts and rebuildRenderer() keep recreating a WebGL context
+			// that a flaky GPU may drop again, leaving the terminal blank in a way
+			// no resize can fix (only closing the tab recovers). DOM is immune to
+			// the blank-after-remount family of bugs, so commit to it once WebGL
+			// has proven unstable — the same tradeoff VS Code makes.
+			suggestedRendererType = "dom";
 			webglAddon?.dispose();
 			webglAddon = null;
 			kind = "dom";
@@ -149,6 +156,45 @@ export function loadRenderer(xterm: XTerm): TerminalRenderer {
 				}
 			: undefined,
 	};
+}
+
+/**
+ * DECRST sequences that disable every input-affecting private mode a TUI may
+ * have turned on (mouse tracking + encoding, focus reporting, bracketed paste,
+ * application cursor keys). Written to an existing xterm instance before a
+ * fresh process is attached to it.
+ *
+ * Why this is needed: when a session is cold-restored, the daemon replays the
+ * previous session's raw output stream as scrollback. If that session ended
+ * uncleanly (e.g. Claude's TUI was still up), the stream enabled mouse tracking
+ * but never emitted the matching disable, so xterm re-enables mouse tracking on
+ * itself while replaying it. Starting a plain shell under that xterm makes every
+ * mouse movement send raw mouse-report sequences into the shell's stdin, which
+ * it echoes back as garbage text. resetModes() only clears our own tracking
+ * refs — it never told xterm to drop these modes — so we do it explicitly here.
+ */
+export const INPUT_MODE_RESET_SEQUENCE = [
+	"\x1b[?9l", // X10 mouse tracking
+	"\x1b[?1000l", // normal (VT200) mouse tracking
+	"\x1b[?1001l", // highlight mouse tracking
+	"\x1b[?1002l", // button-event (drag) tracking
+	"\x1b[?1003l", // any-event (motion) tracking
+	"\x1b[?1004l", // focus reporting
+	"\x1b[?1005l", // UTF-8 mouse encoding
+	"\x1b[?1006l", // SGR mouse encoding
+	"\x1b[?1015l", // urxvt mouse encoding
+	"\x1b[?1l", // application cursor keys → normal
+	"\x1b[?2004l", // bracketed paste
+].join("");
+
+/**
+ * Disable input-affecting private modes (mouse tracking, focus reporting,
+ * bracketed paste, application cursor keys) on an existing xterm instance.
+ * Call before attaching a fresh process to an xterm that may carry stale modes
+ * from replayed scrollback or a prior session.
+ */
+export function resetTerminalInputModes(xterm: XTerm): void {
+	xterm.write(INPUT_MODE_RESET_SEQUENCE);
 }
 
 export interface CreateTerminalOptions {

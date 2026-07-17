@@ -2,6 +2,7 @@ import type { Terminal as XTerm } from "@xterm/xterm";
 import { useCallback, useRef, useState } from "react";
 import { electronTrpcClient as trpcClient } from "renderer/lib/trpc-client";
 import { isTerminalAttachCanceledMessage } from "../attach-cancel";
+import { resetTerminalInputModes } from "../helpers";
 import { coldRestoreState } from "../state";
 import type {
 	CreateOrAttachMutate,
@@ -179,6 +180,11 @@ export function useTerminalColdRestore({
 				error: error instanceof Error ? error.message : String(error),
 			});
 		});
+
+		// The replayed scrollback may have left xterm with mouse tracking (or
+		// other input modes) enabled; drop them before the fresh shell attaches
+		// so mouse movement doesn't spew raw mouse-report sequences into it.
+		resetTerminalInputModes(xterm);
 
 		// Add visual separator
 		xterm.write("\r\n\x1b[90m─── Session Contents Restored ───\x1b[0m\r\n\r\n");

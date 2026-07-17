@@ -19,6 +19,7 @@ import {
 import {
 	createTerminalInstance,
 	loadRenderer,
+	resetTerminalInputModes,
 	setupClickToMoveCursor,
 	setupCopyHandler,
 	setupFocusListener,
@@ -343,6 +344,9 @@ export function useTerminalLifecycle({
 				wasKilledByUserRef.current = false;
 				setExitStatus(null);
 				resetModes();
+				// Clear stale input modes (mouse tracking, bracketed paste, etc.)
+				// left on xterm by the previous session before reattaching.
+				resetTerminalInputModes(xterm);
 				xterm.clear();
 				const attach = () => {
 					const requestId = nextAttachRequestId();

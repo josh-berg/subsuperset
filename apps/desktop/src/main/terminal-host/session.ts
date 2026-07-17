@@ -48,6 +48,15 @@ import {
 const ATTACH_FLUSH_TIMEOUT_MS = 500;
 
 /**
+ * Timeout for the final emulator flush during attach.
+ * The headless write-queue callback can be starved indefinitely under
+ * continuous output, so this flush must be bounded too — otherwise attach hangs
+ * until a newer attach aborts its signal, which surfaces as a 30s+ createOrAttach
+ * timeout and a permanently blank terminal until a manual window resize.
+ */
+const EMULATOR_FLUSH_TIMEOUT_MS = 500;
+
+/**
  * Maximum bytes allowed in subprocess stdin queue.
  * Prevents OOM if subprocess stdin is backpressured (e.g., slow PTY consumer).
  * 2MB is generous - typical large paste is ~50KB.
@@ -757,6 +766,24 @@ export class Session {
 	}
 
 	/**
+	 * Flush the headless emulator, bounded by `timeoutMs`.
+	 * Resolves `true` if the flush completed, `false` if it timed out. The
+	 * emulator's write-callback can be starved indefinitely under continuous
+	 * output, so attach must never wait on it unconditionally.
+	 */
+	private flushEmulatorWithTimeout(timeoutMs: number): Promise<boolean> {
+		let timer: ReturnType<typeof setTimeout> | undefined;
+		const timeoutPromise = new Promise<boolean>((resolve) => {
+			timer = setTimeout(() => resolve(false), timeoutMs);
+		});
+		const flushPromise = this.emulator.flush().then(() => {
+			if (timer) clearTimeout(timer);
+			return true;
+		});
+		return Promise.race([flushPromise, timeoutPromise]);
+	}
+
+	/**
 	 * Check if session is alive (PTY running)
 	 */
 	get isAlive(): boolean {
@@ -839,7 +866,15 @@ export class Session {
 				);
 			}
 
-			await raceWithAbort(this.emulator.flush(), signal);
+			const flushed = await raceWithAbort(
+				this.flushEmulatorWithTimeout(EMULATOR_FLUSH_TIMEOUT_MS),
+				signal,
+			);
+			if (!flushed) {
+				console.warn(
+					`[Session ${this.sessionId}] Emulator flush timeout after ${EMULATOR_FLUSH_TIMEOUT_MS}ms; snapshotting best-effort`,
+				);
+			}
 			throwIfAborted(signal);
 			return this.emulator.getSnapshot();
 		} catch (error) {

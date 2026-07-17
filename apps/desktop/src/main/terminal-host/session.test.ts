@@ -264,6 +264,47 @@ describe("Terminal Host Session shell args", () => {
 	});
 });
 
+describe("Terminal Host Session attach flush bound", () => {
+	it("resolves attach with a snapshot even when the emulator flush never completes", async () => {
+		const session = new Session({
+			sessionId: "session-hung-flush",
+			workspaceId: "workspace-1",
+			paneId: "pane-1",
+			tabId: "tab-1",
+			cols: 80,
+			rows: 24,
+			cwd: "/tmp",
+			shell: "/bin/bash",
+		});
+
+		// Boundary flush completes immediately; the *second* emulator flush hangs
+		// forever — the exact condition that previously wedged createOrAttach until
+		// a newer attach aborted it (30s+ timeout → permanently blank terminal).
+		(
+			session as unknown as {
+				flushToSnapshotBoundary: (_timeoutMs: number) => Promise<boolean>;
+			}
+		).flushToSnapshotBoundary = () => Promise.resolve(true);
+		(
+			session as unknown as { emulator: { flush: () => Promise<void> } }
+		).emulator.flush = () => new Promise<void>(() => {});
+
+		const socket = {
+			write() {
+				return true;
+			},
+		} as unknown as import("node:net").Socket;
+
+		const started = Date.now();
+		const snapshot = await session.attach(socket);
+
+		// Must return well before the 30s client timeout — the bounded flush is 500ms.
+		expect(Date.now() - started).toBeLessThan(5000);
+		expect(snapshot).toBeDefined();
+		expect(snapshot.snapshotAnsi).toBeDefined();
+	});
+});
+
 describe("Terminal Host Session mouse tracking reset", () => {
 	it("disables mouse tracking modes and broadcasts the correction to attached clients", () => {
 		const session = new Session({
