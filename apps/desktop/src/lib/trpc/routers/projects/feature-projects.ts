@@ -70,6 +70,17 @@ function sanitizeRepoName(name: string): string | null {
 		: null;
 }
 
+/** Convert a human-readable project name to a safe folder name with no spaces or special characters. */
+function sanitizeProjectFolderName(name: string): string {
+	const clean = name
+		.trim()
+		.replace(/[\s]+/g, "-")
+		.replace(/[^a-zA-Z0-9._\-]/g, "")
+		.replace(/-+/g, "-")
+		.replace(/^[-_.]+|[-_.]+$/g, "");
+	return clean || "project";
+}
+
 export const createFeatureProjectsRouter = () => {
 	return router({
 		/** Create a new feature project (parent folder + gitless workspace). */
@@ -85,7 +96,10 @@ export const createFeatureProjectsRouter = () => {
 				}),
 			)
 			.mutation(async ({ input }) => {
-				const projectPath = join(input.parentDir, input.name.trim());
+				const projectPath = join(
+					input.parentDir,
+					sanitizeProjectFolderName(input.name),
+				);
 
 				await mkdir(projectPath, { recursive: true });
 
