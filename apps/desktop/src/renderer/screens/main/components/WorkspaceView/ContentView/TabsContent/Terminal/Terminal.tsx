@@ -413,10 +413,12 @@ export const Terminal = ({ paneId, tabId, workspaceId }: TerminalProps) => {
 		event.preventDefault();
 		const files = Array.from(event.dataTransfer.files);
 		let text: string;
+		let isNativeFileDrop = false;
 		if (files.length > 0) {
 			// Native file drop (from Finder, etc.)
 			const paths = files.map((file) => window.webUtils.getPathForFile(file));
 			text = shellEscapePaths(paths);
+			isNativeFileDrop = true;
 		} else {
 			// Internal drag (from file tree) - path is in text/plain
 			const plainText = event.dataTransfer.getData("text/plain");
@@ -424,13 +426,16 @@ export const Terminal = ({ paneId, tabId, workspaceId }: TerminalProps) => {
 			text = shellEscapePaths([plainText]);
 		}
 		if (isExitedRef.current) return;
-		// Wrap in bracketed paste so TUI apps (e.g. Claude Code) can distinguish
-		// a dropped file path from typed input. This is how iTerm/Terminal.app
-		// behave for drag-and-drop and is what lets Claude Code recognize an
-		// image path and substitute `[Image #N]` for it.
-		const data = isBracketedPasteRef.current
-			? `\x1b[200~${text}\x1b[201~`
-			: text;
+		// Native file drops (from Finder) are always wrapped in bracketed paste:
+		// macOS modern shells (zsh/bash/fish) always support it, and Claude Code
+		// requires it to recognize image paths. isBracketedPasteRef can be
+		// transiently false due to mode-resync timing after idle, which would
+		// silently break image drops without this guard.
+		// Internal text drags still respect the mode flag.
+		const data =
+			isNativeFileDrop || isBracketedPasteRef.current
+				? `\x1b[200~${text}\x1b[201~`
+				: text;
 		writeRef.current({ paneId, data });
 	};
 
