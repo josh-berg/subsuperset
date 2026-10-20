@@ -1,3 +1,4 @@
+import { KITTY_KEYBOARD_DISARM_SEQUENCE } from "@superset/shared/leaked-input-mode-reclaim";
 import { toast } from "@superset/ui/sonner";
 import { ClipboardAddon } from "@xterm/addon-clipboard";
 import { FitAddon } from "@xterm/addon-fit";
@@ -14,6 +15,7 @@ import {
 	isAppHotkeyEvent,
 	isTerminalReservedEvent,
 } from "renderer/hotkeys";
+import { installInputModeReclaimer } from "renderer/lib/terminal/terminalInputModeReclaimer";
 import { electronTrpcClient as trpcClient } from "renderer/lib/trpc-client";
 import { toXtermTheme } from "renderer/stores/theme/utils";
 import {
@@ -190,6 +192,7 @@ export const INPUT_MODE_RESET_SEQUENCE = [
 	"\x1b[?1015l", // urxvt mouse encoding
 	"\x1b[?1l", // application cursor keys → normal
 	"\x1b[?2004l", // bracketed paste
+	KITTY_KEYBOARD_DISARM_SEQUENCE, // kitty keyboard protocol
 ].join("");
 
 /**
@@ -359,6 +362,11 @@ export function createTerminalInstance(
 
 	const cleanupQuerySuppression = suppressQueryResponses(xterm);
 
+	// Disarm TUI-only input modes (kitty keyboard / mouse / focus) leaked into a
+	// live shell prompt by a TUI killed while attached — keyed on the OSC 777
+	// shell-ready marker emitted by our shell wrappers.
+	const inputModeReclaimer = installInputModeReclaimer(xterm);
+
 	const urlLinkProvider = new UrlLinkProvider(xterm, (_event, uri) => {
 		const handler = urlClickRef?.current;
 		if (handler) {
@@ -416,6 +424,7 @@ export function createTerminalInstance(
 				cancelAnimationFrame(rafId);
 			}
 			cleanupQuerySuppression();
+			inputModeReclaimer.dispose();
 			rendererRef.current.dispose();
 		},
 	};

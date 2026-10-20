@@ -12,6 +12,10 @@
 			"types": "./src/names/index.ts",
 			"default": "./src/names/index.ts"
 		},
+		"./leaked-input-mode-reclaim": {
+			"types": "./src/leaked-input-mode-reclaim.ts",
+			"default": "./src/leaked-input-mode-reclaim.ts"
+		},
 		"./terminal-link-parsing": {
 			"types": "./src/terminal-link-parsing/index.ts",
 			"default": "./src/terminal-link-parsing/index.ts"
