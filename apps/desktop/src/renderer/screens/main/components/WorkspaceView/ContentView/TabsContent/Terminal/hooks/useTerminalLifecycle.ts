@@ -27,6 +27,7 @@ import {
 	type TerminalRendererRef,
 } from "../helpers";
 import { isPaneDestroyed } from "../pane-guards";
+import { getShellExitedFailure } from "../shell-exited-failure";
 import { coldRestoreState } from "../state";
 import type {
 	CreateOrAttachMutate,
@@ -34,6 +35,7 @@ import type {
 	TerminalCancelCreateOrAttachMutate,
 	TerminalClearScrollbackMutate,
 	TerminalResizeMutate,
+	TerminalStreamEvent,
 	TerminalWriteMutate,
 } from "../types";
 import { scrollToBottom } from "../utils";
@@ -141,6 +143,7 @@ export interface UseTerminalLifecycleOptions {
 	pendingInitialStateRef: MutableRefObject<CreateOrAttachResult | null>;
 	maybeApplyInitialState: () => void;
 	flushPendingEvents: () => void;
+	pendingEventsRef: MutableRefObject<TerminalStreamEvent[]>;
 	resetModes: () => void;
 	isAlternateScreenRef: MutableRefObject<boolean>;
 	isBracketedPasteRef: MutableRefObject<boolean>;
@@ -207,6 +210,7 @@ export function useTerminalLifecycle({
 	pendingInitialStateRef,
 	maybeApplyInitialState,
 	flushPendingEvents,
+	pendingEventsRef,
 	resetModes,
 	isAlternateScreenRef,
 	isBracketedPasteRef,
@@ -225,6 +229,24 @@ export function useTerminalLifecycle({
 	unregisterRefreshCallbackRef,
 	defaultRestartCommandRef,
 }: UseTerminalLifecycleOptions): UseTerminalLifecycleReturn {
+	// The shell ran and died before it was ready. Show it exactly like a
+	// process that exits a moment after attaching: its output, then the exit
+	// line and restart prompt. Not a connection error, so no reconnect loop.
+	const showShellExitedFailure = (
+		failure: NonNullable<ReturnType<typeof getShellExitedFailure>>,
+	) => {
+		pendingEventsRef.current.push(
+			{
+				type: "data",
+				data: `${failure.outputHead}\r\n\x1b[90m[Terminal] ${failure.message}\x1b[0m`,
+			},
+			{ type: "exit", exitCode: failure.exitCode, signal: failure.signal },
+		);
+		isStreamReadyRef.current = true;
+		flushPendingEvents();
+		v1TerminalCache.recordExitState(paneId, false);
+	};
+
 	const [xtermInstance, setXtermInstance] = useState<XTerm | null>(null);
 	const restartTerminalRef = useRef<
 		(options?: { command?: string; forceRestart?: boolean }) => Promise<void>
@@ -442,6 +464,12 @@ export function useTerminalLifecycle({
 									return;
 								}
 								if (isTerminalAttachCanceledMessage(error.message)) {
+									resolve();
+									return;
+								}
+								const shellExited = getShellExitedFailure(error);
+								if (shellExited) {
+									showShellExitedFailure(shellExited);
 									resolve();
 									return;
 								}
@@ -706,6 +734,11 @@ export function useTerminalLifecycle({
 										isStreamReadyRef.current = false;
 										setExitStatus("killed");
 										setConnectionError(null);
+										return;
+									}
+									const shellExited = getShellExitedFailure(error);
+									if (shellExited) {
+										showShellExitedFailure(shellExited);
 										return;
 									}
 									console.error("[Terminal] Failed to create/attach:", error);

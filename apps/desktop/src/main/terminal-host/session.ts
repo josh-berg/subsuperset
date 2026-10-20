@@ -28,6 +28,7 @@ import type {
 	TerminalErrorEvent,
 	TerminalExitEvent,
 	TerminalSnapshot,
+	TerminalSpawnFailureCause,
 } from "../lib/terminal-host/types";
 import { treeKillAsync } from "../lib/tree-kill";
 import {
@@ -85,6 +86,14 @@ const EMULATOR_WRITE_QUEUE_LOW_WATERMARK_BYTES = 250_000;
  */
 const SHELL_READY_TIMEOUT_MS = 15_000;
 
+/**
+ * How much of the process's first output to keep for a spawn failure report,
+ * counted in characters of the decoded text, not bytes — non-ASCII output
+ * crosses the socket larger than this number suggests. A shell that dies
+ * during init prints why in its first lines.
+ */
+const SPAWN_OUTPUT_HEAD_CHARS = 2048;
+
 /** Shells whose wrapper files inject a {@link SHELL_READY_MARKER}. */
 const SHELLS_WITH_READY_MARKER = new Set(["zsh", "bash", "fish"]);
 
@@ -98,9 +107,9 @@ const MOUSE_TRACKING_RESET_SEQUENCE =
 
 /**
  * Shell readiness lifecycle:
- * - `pending`     — shell is initializing; user writes are buffered, escape sequences dropped
- * - `ready`       — marker detected; buffered writes have been flushed
- * - `timed_out`   — marker never arrived within timeout; writes unblocked
+ * - `pending`     — shell is initializing; escape sequences dropped, other writes pass through
+ * - `ready`       — marker detected; writes pass through
+ * - `timed_out`   — marker never arrived within timeout; writes pass through
  * - `unsupported` — shell has no marker (sh, ksh); writes pass through from the start
  */
 type ShellReadyState = "pending" | "ready" | "timed_out" | "unsupported";
@@ -170,15 +179,23 @@ export class Session {
 	private ptyPid: number | null = null;
 	private emulatorWriteBackpressured = false;
 
+	// Spawn failure diagnostics — see describeSpawnFailure()
+	private spawnArgs: string[] = [];
+	private outputHead = "";
+	private ptyExitSignal: number | undefined;
+	private ptyExitReported = false;
+	private ptySpawnError: string | null = null;
+
 	// Promise that resolves when PTY is ready to accept writes
 	private ptyReadyPromise: Promise<void>;
 	private ptyReadyResolve: (() => void) | null = null;
 
-	// Shell readiness — gates write() until the shell's first prompt.
+	// Shell readiness — tracks the shell's init lifecycle. User input and
+	// preset commands pass through regardless; only stale xterm terminal-query
+	// responses (DA/DSR) are filtered while `pending`.
 	// See ShellReadyState for lifecycle docs.
 	private shellReadyState: ShellReadyState;
 	private shellReadyTimeoutId: ReturnType<typeof setTimeout> | null = null;
-	private preReadyStdinQueue: string[] = [];
 	// Marker scanner — tracks how many characters of SHELL_READY_MARKER
 	// we've matched so far. Held bytes are withheld from terminal output
 	// until we confirm a full match (discard them) or a mismatch (flush
@@ -281,6 +298,7 @@ export class Session {
 		const shellArgs = this.command
 			? getCommandShellArgs(this.shell, this.command)
 			: getShellArgs(this.shell);
+		this.spawnArgs = shellArgs;
 		const subprocessPath = path.join(__dirname, "pty-subprocess.js");
 
 		// Spawn subprocess with filtered env to prevent leaking NODE_ENV etc.
@@ -318,6 +336,9 @@ export class Session {
 
 		this.subprocess.on("error", (error) => {
 			console.error(`[Session ${this.sessionId}] Subprocess error:`, error);
+			if (this.ptyPid === null) {
+				this.ptySpawnError ??= error.message;
+			}
 			this.handleSubprocessExit(-1);
 		});
 
@@ -411,6 +432,18 @@ export class Session {
 
 				if (data.length === 0) break;
 
+				if (this.outputHead.length < SPAWN_OUTPUT_HEAD_CHARS) {
+					const head =
+						this.outputHead +
+						data.slice(0, SPAWN_OUTPUT_HEAD_CHARS - this.outputHead.length);
+					// The cap counts UTF-16 code units, so it can land between the
+					// halves of a surrogate pair. Drop the orphan rather than report
+					// a lone surrogate.
+					const lastUnit = head.charCodeAt(head.length - 1);
+					this.outputHead =
+						lastUnit >= 0xd800 && lastUnit <= 0xdbff ? head.slice(0, -1) : head;
+				}
+
 				this.enqueueEmulatorWrite(data);
 
 				this.broadcastEvent("data", {
@@ -424,6 +457,8 @@ export class Session {
 				const exitCode = payload.length >= 4 ? payload.readInt32LE(0) : 0;
 				const signal = payload.length >= 8 ? payload.readInt32LE(4) : 0;
 				this.exitCode = exitCode;
+				this.ptyExitSignal = signal !== 0 ? signal : undefined;
+				this.ptyExitReported = true;
 
 				this.broadcastEvent("exit", {
 					type: "exit",
@@ -449,6 +484,9 @@ export class Session {
 					`[Session ${this.sessionId}] Subprocess error:`,
 					errorMessage,
 				);
+				if (this.ptyPid === null) {
+					this.ptySpawnError ??= errorMessage;
+				}
 
 				this.broadcastEvent("error", {
 					type: "error",
@@ -828,6 +866,32 @@ export class Session {
 	}
 
 	/**
+	 * Why the PTY is not usable after waitForReady(). Only meaningful when
+	 * `!isAlive || pid === null`.
+	 */
+	describeSpawnFailure(): TerminalSpawnFailureCause {
+		if (this.ptyPid !== null && this.ptyExitReported) {
+			return {
+				kind: "SHELL_EXITED",
+				shell: this.shell,
+				args: this.spawnArgs,
+				exitCode: this.exitCode ?? -1,
+				signal: this.ptyExitSignal,
+				outputHead: this.outputHead,
+			};
+		}
+		if (this.exitCode !== null || this.ptySpawnError !== null) {
+			return {
+				kind: "PTY_SPAWN_FAILED",
+				shell: this.shell,
+				exitCode: this.exitCode,
+				error: this.ptySpawnError ?? undefined,
+			};
+		}
+		return { kind: "PTY_SPAWN_TIMEOUT", shell: this.shell };
+	}
+
+	/**
 	 * Get number of attached clients
 	 */
 	get clientCount(): number {
@@ -879,6 +943,9 @@ export class Session {
 				);
 			}
 			throwIfAborted(signal);
+			// The session can be reaped while the emulator catches up — the shell
+			// exits, or another attach to this session force-disposes it.
+			if (this.disposed) throw new Error("Session disposed");
 			return this.emulator.getSnapshot();
 		} catch (error) {
 			if (isTerminalAttachCanceledError(error)) {
@@ -912,21 +979,23 @@ export class Session {
 	/**
 	 * Write data to the PTY's stdin.
 	 *
-	 * While the shell is initializing (`pending` state), writes are triaged:
-	 * - **Escape sequences** (`\x1b`-prefixed) are dropped. These are stale
-	 *   responses from the renderer's xterm to terminal queries the shell
-	 *   sent during startup (DA, DSR). If queued and flushed later they
-	 *   appear as typed text like `?62;4;9;22c`.
-	 * - **Everything else** (preset commands, user input) is buffered and
-	 *   flushed in FIFO order once readiness resolves.
+	 * Escape-sequence responses (`\x1b`-prefixed) are dropped while the shell
+	 * is still initializing — these are stale DA/DSR replies from the
+	 * renderer's xterm to terminal queries the shell sent during startup. If
+	 * forwarded, they appear as typed text like `?62;4;9;22c` at the shell
+	 * prompt. The headless emulator answers those queries directly (see
+	 * constructor), so dropping the renderer's duplicate is safe.
+	 *
+	 * All other data — user keystrokes and preset commands alike — passes
+	 * through immediately. Buffering here previously froze workspaces when
+	 * shell init commands (e.g. fnm's `use-on-cd` hook) opened an interactive
+	 * prompt before the readiness marker fired. See #3478.
 	 */
 	write(data: string): void {
 		if (!this.subprocess || !this.subprocessReady) {
 			throw new Error("PTY not spawned");
 		}
-		if (this.shellReadyState === "pending") {
-			if (data.startsWith("\x1b")) return;
-			this.preReadyStdinQueue.push(data);
+		if (this.shellReadyState === "pending" && data.startsWith("\x1b")) {
 			return;
 		}
 		this.sendWriteToSubprocess(data);
@@ -1082,7 +1151,6 @@ export class Session {
 			clearTimeout(this.shellReadyTimeoutId);
 			this.shellReadyTimeoutId = null;
 		}
-		this.preReadyStdinQueue = [];
 		this.markerMatchPos = 0;
 		this.markerHeldBytes = "";
 		this.subprocessStdinQueue = [];
@@ -1117,8 +1185,7 @@ export class Session {
 
 	/**
 	 * Transition out of `pending`. Flushes any partially-matched marker
-	 * bytes as terminal output (they weren't a real marker), then sends
-	 * all buffered stdin writes to the PTY in order. Idempotent.
+	 * bytes as terminal output (they weren't a real marker). Idempotent.
 	 */
 	private resolveShellReady(state: "ready" | "timed_out"): void {
 		if (this.shellReadyState !== "pending") return;
@@ -1137,12 +1204,6 @@ export class Session {
 			this.markerHeldBytes = "";
 		}
 		this.markerMatchPos = 0;
-		// Flush queued writes in FIFO order
-		const queue = this.preReadyStdinQueue;
-		this.preReadyStdinQueue = [];
-		for (const data of queue) {
-			this.sendWriteToSubprocess(data);
-		}
 	}
 
 	/**

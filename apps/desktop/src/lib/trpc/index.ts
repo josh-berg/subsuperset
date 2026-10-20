@@ -4,6 +4,19 @@ import superjson from "superjson";
 import type { AppRouter } from "./routers";
 import { NotGitRepoError } from "./routers/workspaces/utils/git";
 
+function structuredCause(cause: unknown): Record<string, unknown> | undefined {
+	if (
+		cause &&
+		typeof cause === "object" &&
+		typeof (cause as { kind?: unknown }).kind === "string"
+	) {
+		// Rebuild as a plain object: tRPC wraps non-Error causes in an
+		// UnknownCauseError whose custom fields superjson would otherwise drop.
+		return { ...(cause as Record<string, unknown>) };
+	}
+	return undefined;
+}
+
 /**
  * Core tRPC initialization
  * This provides the base router and procedure builders used by all routers
@@ -11,6 +24,18 @@ import { NotGitRepoError } from "./routers/workspaces/utils/git";
 const t = initTRPC.create({
 	transformer: superjson,
 	isServer: true,
+	// tRPC strips `cause` during serialization; pass kind-discriminated causes
+	// through so the renderer can branch on them instead of parsing messages.
+	errorFormatter({ shape, error }) {
+		const cause = structuredCause(error.cause);
+		return {
+			...shape,
+			data: {
+				...shape.data,
+				...(cause ? { cause } : {}),
+			},
+		};
+	},
 });
 
 /**

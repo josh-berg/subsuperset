@@ -335,6 +335,7 @@ export const Terminal = ({ paneId, tabId, workspaceId }: TerminalProps) => {
 		pendingInitialStateRef,
 		maybeApplyInitialState,
 		flushPendingEvents,
+		pendingEventsRef,
 		resetModes,
 		isAlternateScreenRef,
 		isBracketedPasteRef,

@@ -419,6 +419,12 @@ export function unregisterHandlers(paneId: string): void {
 	entry.subscriptionErrorHandler = null;
 }
 
+/** Record an exit the component showed itself, outside the stream (a shell that died before attach). */
+export function recordExitState(paneId: string, killedByUser: boolean): void {
+	const entry = cache.get(paneId);
+	if (entry) entry.exitState = { killedByUser };
+}
+
 /** A new session attached, so any recorded exit no longer applies. */
 export function clearExitState(paneId: string): void {
 	const entry = cache.get(paneId);

@@ -8,6 +8,7 @@ import { restartDaemon as restartDaemonShared } from "main/lib/terminal";
 import { claudeDetector } from "main/lib/terminal/claude-detector";
 import {
 	isTerminalAttachCanceledError,
+	isTerminalSpawnFailedError,
 	TERMINAL_ATTACH_CANCELED_MESSAGE,
 	TERMINAL_SESSION_KILLED_MESSAGE,
 	TerminalKilledError,
@@ -19,6 +20,7 @@ import { publicProcedure, router } from "../..";
 import { assertWorkspaceUsable } from "../workspaces/utils/usability";
 import { resolveTerminalThemeType } from "./theme-type";
 import { getWorkspaceTerminalContext, resolveCwd } from "./utils";
+import { toTerminalSpawnError } from "./utils/terminal-spawn-error";
 
 const DEBUG_TERMINAL = process.env.SUPERSET_TERMINAL_DEBUG === "1";
 const logger = console;
@@ -187,6 +189,9 @@ export const createTerminalRouter = () => {
 							code: "BAD_REQUEST",
 							message: TERMINAL_ATTACH_CANCELED_MESSAGE,
 						});
+					}
+					if (isTerminalSpawnFailedError(error)) {
+						throw toTerminalSpawnError(error);
 					}
 					if (DEBUG_TERMINAL) {
 						console.warn("[Terminal Router] createOrAttach failed:", {

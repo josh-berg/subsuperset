@@ -119,24 +119,22 @@ function spawnAndReady(
 // Tests
 // =============================================================================
 
-describe("Session shell-ready: write buffering", () => {
-	it("buffers writes while shell is pending and flushes after marker", () => {
+describe("Session shell-ready: write pass-through", () => {
+	it("passes user input through while the shell is still initializing", () => {
 		const { session, proc } = createTestSession("/bin/zsh");
 		spawnAndReady(session, proc);
 
-		// Write before shell is ready — should be buffered
-		session.write("echo hello\n");
+		// Shell init (e.g. an interactive hook) can wait on the user before the
+		// ready marker ever fires, so input must reach the PTY right away.
+		session.write("y\n");
 		session.write("echo world\n");
 
-		// No write frames should have been sent yet
-		expect(getWrittenData(proc)).toEqual([]);
+		expect(getWrittenData(proc)).toEqual(["y\n", "echo world\n"]);
 
-		// Shell emits the ready marker
 		sendData(proc, `direnv output...${SHELL_READY_MARKER}prompt$ `);
 
-		// Now the buffered writes should be flushed in order
-		const writes = getWrittenData(proc);
-		expect(writes).toEqual(["echo hello\n", "echo world\n"]);
+		// Resolving readiness must not replay anything
+		expect(getWrittenData(proc)).toEqual(["y\n", "echo world\n"]);
 	});
 
 	it("passes writes through immediately for unsupported shells (sh)", () => {
@@ -166,32 +164,25 @@ describe("Session shell-ready: write buffering", () => {
 		session.write("\x1b[?62;4;9;22c");
 		// Simulate cursor position report
 		session.write("\x1b[1;1R");
-		// Queue a real preset command
+		// A real preset command is not an escape response
 		session.write("claude\n");
 
-		// Only the preset command should be in the queue
-		expect(getWrittenData(proc)).toEqual([]);
+		// Only the command reaches the PTY — escape sequences dropped
+		expect(getWrittenData(proc)).toEqual(["claude\n"]);
 
 		sendData(proc, SHELL_READY_MARKER);
 
-		// Only the command should flush — escape sequences dropped
 		expect(getWrittenData(proc)).toEqual(["claude\n"]);
 	});
 
-	it("flushes buffered writes on subprocess exit", async () => {
+	it("passes escape-prefixed input through once the shell is ready", () => {
 		const { session, proc } = createTestSession("/bin/zsh");
 		spawnAndReady(session, proc);
+		sendData(proc, SHELL_READY_MARKER);
 
-		session.write("echo delayed\n");
-		expect(getWrittenData(proc)).toEqual([]);
+		session.write("\x1b[A");
 
-		// Simulate exit which resolves shell readiness as timed_out
-		sendExit(proc, 0);
-		proc.emit("exit", 0);
-
-		// Buffered write should now be flushed
-		const writes = getWrittenData(proc);
-		expect(writes).toEqual(["echo delayed\n"]);
+		expect(getWrittenData(proc)).toEqual(["\x1b[A"]);
 	});
 });
 
@@ -217,17 +208,19 @@ describe("Session shell-ready: marker detection", () => {
 		const firstHalf = SHELL_READY_MARKER.slice(0, half);
 		const secondHalf = SHELL_READY_MARKER.slice(half);
 
-		// Send first half — shell should still be pending
+		// Send first half — shell should still be pending, so an escape-prefixed
+		// terminal response is still dropped
 		sendData(proc, `output${firstHalf}`);
 
-		session.write("buffered\n");
+		session.write("\x1b[1;1R");
 		expect(getWrittenData(proc)).toEqual([]);
 
 		// Send second half — should complete the marker
 		sendData(proc, `${secondHalf}prompt`);
 
-		// Now writes should flush
-		expect(getWrittenData(proc)).toEqual(["buffered\n"]);
+		// Now escape-prefixed writes pass through
+		session.write("\x1b[1;1R");
+		expect(getWrittenData(proc)).toEqual(["\x1b[1;1R"]);
 	});
 
 	it("handles marker at start of data frame", () => {
@@ -258,29 +251,29 @@ describe("Session shell-ready: marker detection", () => {
 		const partialMarker = SHELL_READY_MARKER.slice(0, 5);
 		sendData(proc, `${partialMarker}not-a-marker`);
 
-		// Shell should still be pending
-		session.write("buffered\n");
+		// Shell should still be pending: terminal responses are dropped
+		session.write("\x1b[1;1R");
 		expect(getWrittenData(proc)).toEqual([]);
 
 		// Now send the real marker
 		sendData(proc, SHELL_READY_MARKER);
-		expect(getWrittenData(proc)).toEqual(["buffered\n"]);
+		session.write("\x1b[1;1R");
+		expect(getWrittenData(proc)).toEqual(["\x1b[1;1R"]);
 	});
 });
 
 describe("Session shell-ready: kill/exit before readiness", () => {
-	it("flushes queue when subprocess exits before marker", () => {
+	it("does not replay or lose input when the subprocess exits before the marker", () => {
 		const { session, proc } = createTestSession("/bin/bash");
 		spawnAndReady(session, proc);
 
 		session.write("echo pending\n");
-		expect(getWrittenData(proc)).toEqual([]);
+		expect(getWrittenData(proc)).toEqual(["echo pending\n"]);
 
 		// Subprocess exits without ever sending the marker
 		sendExit(proc, 1);
 		proc.emit("exit", 1);
 
-		// Queue should be flushed on exit
 		expect(getWrittenData(proc)).toEqual(["echo pending\n"]);
 	});
 
@@ -289,14 +282,13 @@ describe("Session shell-ready: kill/exit before readiness", () => {
 		spawnAndReady(session, proc);
 
 		session.write("echo pending\n");
-		expect(getWrittenData(proc)).toEqual([]);
+		expect(getWrittenData(proc)).toEqual(["echo pending\n"]);
 
 		// Kill triggers termination → subprocess exit → readiness resolved
 		session.kill();
 		sendExit(proc, 0);
 		proc.emit("exit", 0);
 
-		// Writes should be flushed
 		expect(getWrittenData(proc)).toEqual(["echo pending\n"]);
 	});
 });
@@ -308,12 +300,12 @@ describe("Session shell-ready: supported shells", () => {
 		"/bin/bash",
 		"/usr/local/bin/fish",
 	]) {
-		it(`buffers writes for supported shell: ${shell}`, () => {
+		it(`passes writes through for supported shell: ${shell}`, () => {
 			const { session, proc } = createTestSession(shell);
 			spawnAndReady(session, proc);
 
 			session.write("test\n");
-			expect(getWrittenData(proc)).toEqual([]);
+			expect(getWrittenData(proc)).toEqual(["test\n"]);
 
 			sendData(proc, SHELL_READY_MARKER);
 			expect(getWrittenData(proc)).toEqual(["test\n"]);
