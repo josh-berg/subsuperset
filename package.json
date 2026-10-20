@@ -49,7 +49,8 @@
 		"axios": "1.14.0"
 	},
 	"patchedDependencies": {
-		"@durable-streams/state@0.2.1": "patches/@durable-streams%2Fstate@0.2.1.patch"
+		"@durable-streams/state@0.2.1": "patches/@durable-streams%2Fstate@0.2.1.patch",
+		"@xterm/addon-ligatures@0.11.0-beta.310": "patches/@xterm%2Faddon-ligatures@0.11.0-beta.310.patch"
 	},
 	"trustedDependencies": [
 		"better-sqlite3",
