@@ -33,6 +33,7 @@ import type {
 	TerminalStreamEvent,
 } from "./types";
 import { shellEscapePaths } from "./utils";
+import * as v1TerminalCache from "./v1-terminal-cache";
 
 const stripLeadingEmoji = (text: string) =>
 	text.trim().replace(/^[\p{Emoji}\p{Symbol}]\s*/u, "");
@@ -109,7 +110,6 @@ export const Terminal = ({ paneId, tabId, workspaceId }: TerminalProps) => {
 			createOrAttach: createOrAttachRef,
 			write: writeRef,
 			resize: resizeRef,
-			detach: detachRef,
 			cancelCreateOrAttach: cancelCreateOrAttachRef,
 			clearScrollback: clearScrollbackRef,
 		},
@@ -273,27 +273,6 @@ export const Terminal = ({ paneId, tabId, workspaceId }: TerminalProps) => {
 	handleTerminalExitRef.current = handleTerminalExit;
 	handleStreamErrorRef.current = handleStreamError;
 
-	// Stream subscription
-	electronTrpc.terminal.stream.useSubscription(paneId, {
-		onData: (event) => {
-			if (connectionErrorRef.current && event.type === "data") {
-				setConnectionError(null);
-				retryCountRef.current = 0;
-			}
-			handleStreamData(event);
-		},
-		onError: (error) => {
-			console.error("[Terminal] Stream subscription error:", {
-				paneId,
-				error: error instanceof Error ? error.message : String(error),
-			});
-			setConnectionError(
-				error instanceof Error ? error.message : "Connection to terminal lost",
-			);
-		},
-		enabled: true,
-	});
-
 	// Auto-retry when connection error is set
 	useEffect(() => {
 		if (!connectionError) return;
@@ -349,7 +328,6 @@ export const Terminal = ({ paneId, tabId, workspaceId }: TerminalProps) => {
 		createOrAttachRef,
 		writeRef,
 		resizeRef,
-		detachRef,
 		cancelCreateOrAttachRef,
 		clearScrollbackRef,
 		isStreamReadyRef,
@@ -376,6 +354,45 @@ export const Terminal = ({ paneId, tabId, workspaceId }: TerminalProps) => {
 		defaultRestartCommandRef,
 	});
 
+	// Stream event handler registration — the subscription itself lives in
+	// v1TerminalCache and stays alive across mount/unmount cycles so data keeps
+	// flowing to xterm even while the tab is hidden. Gated on xtermInstance so
+	// it re-runs once the lifecycle hook has the cached terminal mounted.
+	useEffect(() => {
+		if (!xtermInstance) return;
+
+		const queuedEvents = v1TerminalCache.registerHandlers(paneId, {
+			onEvent: (event) => {
+				if (connectionErrorRef.current && event.type === "data") {
+					setConnectionError(null);
+					retryCountRef.current = 0;
+				}
+				handleStreamData(event);
+			},
+			onError: (error) => {
+				console.error("[Terminal] Stream subscription error:", {
+					paneId,
+					error: error instanceof Error ? error.message : String(error),
+				});
+				setConnectionError(
+					error instanceof Error
+						? error.message
+						: "Connection to terminal lost",
+				);
+			},
+		});
+
+		// Process lifecycle events (exit, error, disconnect) that arrived while
+		// this component was unmounted.
+		for (const event of queuedEvents) {
+			handleStreamData(event);
+		}
+
+		return () => {
+			v1TerminalCache.unregisterHandlers(paneId);
+		};
+	}, [paneId, xtermInstance, handleStreamData, setConnectionError]);
+
 	useEffect(() => {
 		const xterm = xtermRef.current;
 		if (!xterm || !terminalTheme) return;
@@ -389,22 +406,16 @@ export const Terminal = ({ paneId, tabId, workspaceId }: TerminalProps) => {
 		},
 	);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: resizeRef is a stable MutableRefObject — .current is read inside the callback, not a dependency
 	useEffect(() => {
-		const xterm = xtermRef.current;
-		if (!xterm || !fontSettings) return;
+		if (!fontSettings) return;
 		const family =
 			fontSettings.terminalFontFamily || DEFAULT_TERMINAL_FONT_FAMILY;
 		const size = fontSettings.terminalFontSize ?? DEFAULT_TERMINAL_FONT_SIZE;
-		if (
-			xterm.options.fontFamily === family &&
-			xterm.options.fontSize === size
-		) {
-			return;
-		}
-		xterm.options.fontFamily = family;
-		xterm.options.fontSize = size;
-		fitAddonRef.current?.fit();
-	}, [fontSettings]);
+		v1TerminalCache.updateAppearance(paneId, family, size, ({ cols, rows }) =>
+			resizeRef.current({ paneId, cols, rows }),
+		);
+	}, [paneId, fontSettings, xtermInstance]);
 
 	const terminalBg = terminalTheme?.background ?? getDefaultTerminalBg();
 

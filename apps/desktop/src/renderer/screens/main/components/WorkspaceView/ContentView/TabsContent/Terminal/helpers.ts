@@ -4,6 +4,7 @@ import { ClipboardAddon } from "@xterm/addon-clipboard";
 import { FitAddon } from "@xterm/addon-fit";
 import { ImageAddon } from "@xterm/addon-image";
 import { LigaturesAddon } from "@xterm/addon-ligatures";
+import { SearchAddon } from "@xterm/addon-search";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { WebglAddon } from "@xterm/addon-webgl";
 import type { ITheme } from "@xterm/xterm";
@@ -15,6 +16,11 @@ import {
 	isAppHotkeyEvent,
 	isTerminalReservedEvent,
 } from "renderer/hotkeys";
+import {
+	createParserIdleGate,
+	type ParserIdleGate,
+	wrapWrite,
+} from "renderer/lib/terminal/parser-idle-gate";
 import { installInputModeReclaimer } from "renderer/lib/terminal/terminalInputModeReclaimer";
 import { electronTrpcClient as trpcClient } from "renderer/lib/trpc-client";
 import { toXtermTheme } from "renderer/stores/theme/utils";
@@ -244,12 +250,19 @@ export interface TerminalRendererRef {
 	current: TerminalRenderer;
 }
 
-export function createTerminalInstance(
-	container: HTMLDivElement,
-	options: CreateTerminalOptions = {},
-): {
+/**
+ * Create an xterm instance opened into a detached wrapper div (not a live
+ * container). The wrapper can be moved between DOM containers via appendChild
+ * without disposing the terminal, so xterm survives React mount/unmount.
+ *
+ * Used by v1-terminal-cache.ts.
+ */
+export function createTerminalInWrapper(options: CreateTerminalOptions = {}): {
 	xterm: XTerm;
 	fitAddon: FitAddon;
+	searchAddon: SearchAddon;
+	gate: ParserIdleGate;
+	wrapper: HTMLDivElement;
 	renderer: TerminalRendererRef;
 	cleanup: () => void;
 } {
@@ -311,7 +324,12 @@ export function createTerminalInstance(
 			},
 		},
 	});
+	// Count in-flight writes so fits can wait out async inline-image decodes;
+	// resizing mid-decode bricks xterm's parser.
+	const gate = createParserIdleGate();
+	xterm.write = wrapWrite(gate, xterm.write.bind(xterm));
 	const fitAddon = new FitAddon();
+	const searchAddon = new SearchAddon();
 
 	const clipboardAddon = new ClipboardAddon();
 	const unicode11Addon = new Unicode11Addon();
@@ -331,10 +349,15 @@ export function createTerminalInstance(
 		},
 	};
 
-	xterm.open(container);
+	// Open into a detached wrapper div, not the live container.
+	const wrapper = document.createElement("div");
+	wrapper.style.width = "100%";
+	wrapper.style.height = "100%";
+	xterm.open(wrapper);
 
 	// Load non-renderer addons synchronously - these are safe and needed immediately
 	xterm.loadAddon(fitAddon);
+	xterm.loadAddon(searchAddon);
 	xterm.loadAddon(clipboardAddon);
 	xterm.loadAddon(unicode11Addon);
 	xterm.loadAddon(imageAddon);
@@ -412,11 +435,13 @@ export function createTerminalInstance(
 	xterm.registerLinkProvider(filePathLinkProvider);
 
 	xterm.unicode.activeVersion = "11";
-	fitAddon.fit();
 
 	return {
 		xterm,
 		fitAddon,
+		searchAddon,
+		gate,
+		wrapper,
 		renderer: rendererRef,
 		cleanup: () => {
 			isDisposed = true;

@@ -10,6 +10,7 @@ import type {
 	TerminalStreamEvent,
 } from "../types";
 import { scrollToBottom } from "../utils";
+import * as v1TerminalCache from "../v1-terminal-cache";
 
 export interface UseTerminalColdRestoreOptions {
 	paneId: string;
@@ -96,6 +97,8 @@ export function useTerminalColdRestore({
 					if (!currentXterm) return;
 
 					setConnectionError(null);
+					v1TerminalCache.startStream(paneId);
+					v1TerminalCache.setStreamReady(paneId);
 					currentXterm.writeln("\x1b[90m[Reconnected]\x1b[0m");
 
 					if (result.isColdRestore) {
@@ -211,6 +214,9 @@ export function useTerminalColdRestore({
 			},
 			{
 				onSuccess: (result: CreateOrAttachResult) => {
+					v1TerminalCache.clearExitState(paneId);
+					v1TerminalCache.startStream(paneId);
+					v1TerminalCache.setStreamReady(paneId);
 					pendingInitialStateRef.current = result;
 					maybeApplyInitialState();
 
