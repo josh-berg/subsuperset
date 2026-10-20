@@ -282,12 +282,11 @@ export function useTerminalLifecycle({
 			runWhenParserIdle(cached.gate, () => {
 				if (isUnmounted || xtermRef.current !== xterm) return;
 				if (container.clientWidth === 0 || container.clientHeight === 0) return;
-				const prevCols = xterm.cols;
-				const prevRows = xterm.rows;
 				fitAddon.fit();
-				if (xterm.cols !== prevCols || xterm.rows !== prevRows) {
-					resizeRef.current({ paneId, cols: xterm.cols, rows: xterm.rows });
-				}
+				// Always send: a resize that raced the session's creation was
+				// dropped, and xterm's own size already reflects it, so a
+				// "did it change" check would leave the shell at the wrong width.
+				resizeRef.current({ paneId, cols: xterm.cols, rows: xterm.rows });
 			});
 		};
 
