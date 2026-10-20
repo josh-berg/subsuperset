@@ -22,7 +22,7 @@ interface FileListProps {
 	onUnstageFiles?: (files: ChangedFile[]) => void;
 	isActioning?: boolean;
 	worktreePath: string;
-	onDiscard?: (file: ChangedFile) => void;
+	onDiscardFiles?: (files: ChangedFile[]) => void;
 	category?: ChangeCategory;
 	commitHash?: string;
 	isExpandedView?: boolean;
@@ -44,7 +44,7 @@ export function FileList({
 	onUnstageFiles,
 	isActioning,
 	worktreePath,
-	onDiscard,
+	onDiscardFiles,
 	category,
 	commitHash,
 	isExpandedView,
@@ -79,7 +79,7 @@ export function FileList({
 					onUnstageFiles={onUnstageFiles}
 					isActioning={isActioning}
 					worktreePath={worktreePath}
-					onDiscard={onDiscard}
+					onDiscardFiles={onDiscardFiles}
 					category={category}
 					commitHash={commitHash}
 					isExpandedView={isExpandedView}
@@ -104,7 +104,7 @@ export function FileList({
 				onUnstageFiles={onUnstageFiles}
 				isActioning={isActioning}
 				worktreePath={worktreePath}
-				onDiscard={onDiscard}
+				onDiscardFiles={onDiscardFiles}
 				category={category}
 				commitHash={commitHash}
 				isExpandedView={isExpandedView}
@@ -130,7 +130,7 @@ export function FileList({
 				onUnstageFiles={onUnstageFiles}
 				isActioning={isActioning}
 				worktreePath={worktreePath}
-				onDiscard={onDiscard}
+				onDiscardFiles={onDiscardFiles}
 				category={category}
 				commitHash={commitHash}
 				isExpandedView={isExpandedView}
@@ -155,7 +155,7 @@ export function FileList({
 			onUnstageFiles={onUnstageFiles}
 			isActioning={isActioning}
 			worktreePath={worktreePath}
-			onDiscard={onDiscard}
+			onDiscardFiles={onDiscardFiles}
 			category={category}
 			commitHash={commitHash}
 			isExpandedView={isExpandedView}

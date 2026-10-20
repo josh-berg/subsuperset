@@ -20,7 +20,7 @@ interface FileListGroupedVirtualizedProps {
 	onUnstageFiles?: (files: ChangedFile[]) => void;
 	isActioning?: boolean;
 	worktreePath: string;
-	onDiscard?: (file: ChangedFile) => void;
+	onDiscardFiles?: (files: ChangedFile[]) => void;
 	category?: ChangeCategory;
 	commitHash?: string;
 	isExpandedView?: boolean;
@@ -79,7 +79,7 @@ export function FileListGroupedVirtualized({
 	onUnstageFiles,
 	isActioning,
 	worktreePath,
-	onDiscard,
+	onDiscardFiles,
 	category,
 	commitHash,
 	isExpandedView,
@@ -198,12 +198,8 @@ export function FileListGroupedVirtualized({
 											: undefined
 									}
 									onDiscardAll={
-										onDiscard
-											? () => {
-													for (const file of row.group.files) {
-														onDiscard(file);
-													}
-												}
+										onDiscardFiles
+											? () => onDiscardFiles(row.group.files)
 											: undefined
 									}
 									isActioning={isActioning}
@@ -229,7 +225,9 @@ export function FileListGroupedVirtualized({
 										projectId={projectId}
 										defaultApp={defaultApp}
 										onDiscard={
-											onDiscard ? () => onDiscard(row.file) : undefined
+											onDiscardFiles
+												? () => onDiscardFiles([row.file])
+												: undefined
 										}
 										category={category}
 										commitHash={commitHash}

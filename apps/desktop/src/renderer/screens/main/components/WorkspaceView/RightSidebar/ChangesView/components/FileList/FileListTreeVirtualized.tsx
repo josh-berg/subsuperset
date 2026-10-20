@@ -29,7 +29,7 @@ interface FileListTreeVirtualizedProps {
 	onUnstageFiles?: (files: ChangedFile[]) => void;
 	isActioning?: boolean;
 	worktreePath: string;
-	onDiscard?: (file: ChangedFile) => void;
+	onDiscardFiles?: (files: ChangedFile[]) => void;
 	category?: ChangeCategory;
 	commitHash?: string;
 	isExpandedView?: boolean;
@@ -169,7 +169,7 @@ export function FileListTreeVirtualized({
 	onUnstageFiles,
 	isActioning,
 	worktreePath,
-	onDiscard,
+	onDiscardFiles,
 	category,
 	commitHash,
 	isExpandedView,
@@ -271,14 +271,9 @@ export function FileListTreeVirtualized({
 											: undefined
 									}
 									onDiscardAll={
-										onDiscard
-											? () => {
-													const folderFiles =
-														folderFileMap.get(row.node.id) ?? [];
-													for (const file of folderFiles) {
-														onDiscard(file);
-													}
-												}
+										onDiscardFiles
+											? () =>
+													onDiscardFiles(folderFileMap.get(row.node.id) ?? [])
 											: undefined
 									}
 									isActioning={isActioning}
@@ -300,7 +295,11 @@ export function FileListTreeVirtualized({
 									worktreePath={worktreePath}
 									projectId={projectId}
 									defaultApp={defaultApp}
-									onDiscard={onDiscard ? () => onDiscard(row.file) : undefined}
+									onDiscard={
+										onDiscardFiles
+											? () => onDiscardFiles([row.file])
+											: undefined
+									}
 									category={category}
 									commitHash={commitHash}
 									isExpandedView={isExpandedView}
