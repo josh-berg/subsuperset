@@ -22,6 +22,12 @@ SESSION_ID=${RESOURCE_ID:-$HOOK_SESSION_ID}
 # Skip if this isn't a Superset terminal hook and no Mastra session context exists
 [ -z "$SUPERSET_TAB_ID" ] && [ -z "$SESSION_ID" ] && exit 0
 
+# Claude Code sets agent_id only when the hook fires inside a subagent (Task
+# tool). Subagent activity must not drive terminal-level agent status or
+# notifications — only the main loop counts.
+SUBAGENT_ID=$(echo "$INPUT" | grep -oE '"agent_id"[[:space:]]*:[[:space:]]*"[^"]*"' | grep -oE '"[^"]*"$' | tr -d '"')
+[ -n "$SUBAGENT_ID" ] && exit 0
+
 # Extract event type - Claude uses "hook_event_name", Codex uses "type"
 # Use flexible pattern to handle optional whitespace: "key": "value" or "key":"value"
 EVENT_TYPE=$(echo "$INPUT" | grep -oE '"hook_event_name"[[:space:]]*:[[:space:]]*"[^"]*"' | grep -oE '"[^"]*"$' | tr -d '"')
