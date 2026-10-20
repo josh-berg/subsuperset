@@ -8,7 +8,12 @@ import { WebglAddon } from "@xterm/addon-webgl";
 import type { ITheme } from "@xterm/xterm";
 import { Terminal as XTerm } from "@xterm/xterm";
 import { debounce } from "lodash";
-import { getBinding, isTerminalReservedEvent } from "renderer/hotkeys";
+import {
+	eventMatchesBinding,
+	getBinding,
+	isAppHotkeyEvent,
+	isTerminalReservedEvent,
+} from "renderer/hotkeys";
 import { electronTrpcClient as trpcClient } from "renderer/lib/trpc-client";
 import { toXtermTheme } from "renderer/stores/theme/utils";
 import {
@@ -270,9 +275,18 @@ export function createTerminalInstance(
 						onFileLinkClick(parsed.path, parsed.line, parsed.column);
 					} else {
 						trpcClient.external.openFileInEditor
-							.mutate({ path: parsed.path, line: parsed.line, column: parsed.column, cwd })
+							.mutate({
+								path: parsed.path,
+								line: parsed.line,
+								column: parsed.column,
+								cwd,
+							})
 							.catch((error) => {
-								console.error("[Terminal] Failed to open OSC8 file link:", uri, error);
+								console.error(
+									"[Terminal] Failed to open OSC8 file link:",
+									uri,
+									error,
+								);
 							});
 					}
 				} else {
@@ -284,7 +298,9 @@ export function createTerminalInstance(
 							console.error("[Terminal] Failed to open OSC8 URL:", uri, error);
 							toast.error("Failed to open URL", {
 								description:
-									error instanceof Error ? error.message : "Could not open URL in browser",
+									error instanceof Error
+										? error.message
+										: "Could not open URL in browser",
 							});
 						});
 					}
@@ -659,17 +675,6 @@ export function setupPasteHandler(
  *
  * Returns a cleanup function to remove the handler.
  */
-function matchesKey(event: KeyboardEvent, keys: string): boolean {
-	const parts = keys.toLowerCase().split("+");
-	const modifiers = new Set(parts.slice(0, -1));
-	const key = parts[parts.length - 1];
-	if (modifiers.has("meta") !== event.metaKey) return false;
-	if (modifiers.has("ctrl") !== event.ctrlKey) return false;
-	if (modifiers.has("alt") !== event.altKey) return false;
-	if (modifiers.has("shift") !== event.shiftKey) return false;
-	return event.key.toLowerCase() === key;
-}
-
 export function setupKeyboardHandler(
 	xterm: XTerm,
 	options: KeyboardHandlerOptions = {},
@@ -810,15 +815,20 @@ export function setupKeyboardHandler(
 
 		// CLEAR_TERMINAL is handled here (xterm needs to call onClear)
 		const clearKeys = getBinding("CLEAR_TERMINAL");
-		if (clearKeys && matchesKey(event, clearKeys)) {
+		if (clearKeys && eventMatchesBinding(event, clearKeys)) {
 			if (event.type === "keydown" && options.onClear) {
 				options.onClear();
 			}
 			return false;
 		}
 
-		// Any other ctrl/meta combo → let it bubble to document for react-hotkeys-hook
-		if (event.type === "keydown" && (event.metaKey || event.ctrlKey))
+		// Registered app hotkeys bubble to document for react-hotkeys-hook.
+		// Unbound ctrl/meta chords (Ctrl+R, Ctrl+L, ...) must reach the TUI.
+		if (
+			event.type === "keydown" &&
+			(event.metaKey || event.ctrlKey) &&
+			isAppHotkeyEvent(event)
+		)
 			return false;
 
 		return true;
