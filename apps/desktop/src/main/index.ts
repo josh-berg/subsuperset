@@ -31,6 +31,7 @@ import {
 	prewarmTerminalRuntime,
 	reconcileDaemonSessions,
 } from "./lib/terminal";
+import { getTerminalHostClient } from "./lib/terminal-host/client";
 import { disposeTray, initTray } from "./lib/tray";
 import { MainWindow } from "./windows/main";
 
@@ -138,6 +139,9 @@ export type QuitMode = "release" | "stop";
 let pendingQuitMode: QuitMode | null = null;
 let isQuitting = false;
 
+/** Upper bound on waiting for the terminal daemon to stop on "Quit & Stop Services". */
+const QUIT_DAEMON_STOP_TIMEOUT_MS = 5000;
+
 /** Request the app to quit.
  *  - "release": keep services running (re-adoptable on next launch)
  *  - "stop": terminate all services before exit */
@@ -196,13 +200,40 @@ app.on("before-quit", async (event) => {
 	}
 
 	isQuitting = true;
-	const manager = getHostServiceManager();
-	if (quitMode === "stop") {
-		manager.stopAll();
-	} else {
-		manager.releaseAll();
+	// Hold Electron's quit while cleanup runs; app.exit(0) below always ends it.
+	event.preventDefault();
+
+	// Each step is isolated and bounded so a throw or a wedged daemon can never
+	// leave the app running with its windows closed.
+	try {
+		const manager = getHostServiceManager();
+		if (quitMode === "stop") {
+			manager.stopAll();
+		} else {
+			manager.releaseAll();
+		}
+	} catch (error) {
+		console.error("[main] Host service cleanup failed:", error);
 	}
-	disposeTray();
+
+	if (quitMode === "stop") {
+		try {
+			await Promise.race([
+				getTerminalHostClient().shutdownIfRunning({ killSessions: true }),
+				new Promise<void>((resolve) =>
+					setTimeout(resolve, QUIT_DAEMON_STOP_TIMEOUT_MS),
+				),
+			]);
+		} catch (error) {
+			console.error("[main] Terminal daemon shutdown failed:", error);
+		}
+	}
+
+	try {
+		disposeTray();
+	} catch (error) {
+		console.error("[main] Tray cleanup failed:", error);
+	}
 	app.exit(0);
 });
 
