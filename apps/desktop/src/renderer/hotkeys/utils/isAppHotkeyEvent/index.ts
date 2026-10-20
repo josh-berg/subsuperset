@@ -1,0 +1,1 @@
+export { isAppHotkeyEvent } from "./isAppHotkeyEvent";
