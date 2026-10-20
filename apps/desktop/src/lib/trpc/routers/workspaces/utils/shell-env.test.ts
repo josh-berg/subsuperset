@@ -8,7 +8,11 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { applyShellEnvToProcess, getProcessEnvWithShellEnv } from "./shell-env";
+import {
+	applyShellEnvToProcess,
+	getProcessEnvWithShellEnv,
+	getProcessEnvWithShellPath,
+} from "./shell-env";
 
 describe("shell env merging", () => {
 	test("getProcessEnvWithShellEnv fills in missing shell variables", async () => {
@@ -53,6 +57,21 @@ describe("shell env merging", () => {
 		await applyShellEnvToProcess(targetEnv, {});
 
 		expect(targetEnv).toEqual({});
+	});
+});
+
+describe("getProcessEnvWithShellPath", () => {
+	test("strips PAGER and GIT_PAGER so git >= 2.50 accepts non-interactive calls", async () => {
+		const env = await getProcessEnvWithShellPath({
+			PATH: "/usr/bin:/bin",
+			PAGER: "less",
+			GIT_PAGER: "delta",
+			KEEP_ME: "yes",
+		});
+
+		expect("PAGER" in env).toBe(false);
+		expect("GIT_PAGER" in env).toBe(false);
+		expect(env.KEEP_ME).toBe("yes");
 	});
 });
 
