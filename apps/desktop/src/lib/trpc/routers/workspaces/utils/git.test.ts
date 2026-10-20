@@ -14,10 +14,13 @@ import {
 	branchExistsOnRemote,
 	createWorktree,
 	getCurrentBranch,
+	getGitRoot,
 	hasUnpushedCommits,
+	isNotGitRepoMessage,
 	isUnbornHeadError,
 	parsePorcelainStatusV2,
 	parsePrUrl,
+	worktreeExists,
 } from "./git";
 
 const TEST_DIR = join(
@@ -524,6 +527,44 @@ describe("createWorktree hook tolerance", () => {
 			.trim();
 		expect(currentBranch).toBe("feature/new-workspace");
 	}, 10_000);
+});
+
+describe("isNotGitRepoMessage", () => {
+	test("recognizes the classic wording", () => {
+		expect(
+			isNotGitRepoMessage("fatal: not a git repository (or any parent)"),
+		).toBe(true);
+	});
+
+	test("recognizes the git 2.56 gitfile wording", () => {
+		expect(
+			isNotGitRepoMessage(
+				"fatal: gitfile does not point to a valid repository: /tmp/x/.git",
+			),
+		).toBe(true);
+	});
+
+	test("ignores unrelated errors", () => {
+		expect(isNotGitRepoMessage("fatal: bad revision 'HEAD'")).toBe(false);
+	});
+});
+
+describe("paths ending in whitespace", () => {
+	test("getGitRoot keeps trailing whitespace in the folder name", async () => {
+		const repoPath = createTestRepo("trailing-space ");
+		seedCommit(repoPath);
+
+		expect(await getGitRoot(repoPath)).toBe(repoPath);
+	});
+
+	test("worktreeExists matches a worktree whose folder ends in whitespace", async () => {
+		const repoPath = createTestRepo("wt-trailing-main");
+		seedCommit(repoPath);
+		const worktreePath = join(TEST_DIR, "wt-trailing-wt ");
+		await createWorktree(repoPath, "feature/trailing", worktreePath, "HEAD");
+
+		expect(await worktreeExists(repoPath, worktreePath)).toBe(true);
+	}, 15_000);
 });
 
 describe("getCurrentBranch", () => {

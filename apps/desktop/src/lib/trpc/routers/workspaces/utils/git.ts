@@ -19,6 +19,19 @@ import { resolveTrackingRemoteName } from "./upstream-ref";
 
 const execFileAsync = promisify(execFile);
 
+/**
+ * True when git's message means "not a repository". Git 2.56 reworded the
+ * error for a `.git` file that points nowhere to "gitfile does not point to a
+ * valid repository".
+ */
+export function isNotGitRepoMessage(message: string): boolean {
+	const lower = message.toLowerCase();
+	return (
+		lower.includes("not a git repository") ||
+		lower.includes("gitfile does not point to a valid repository")
+	);
+}
+
 export class NotGitRepoError extends Error {
 	constructor(repoPath: string) {
 		super(`Not a git repository: ${repoPath}`);
@@ -88,7 +101,8 @@ async function isWorktreeRegistered({
 				continue;
 			}
 
-			const listedPath = line.slice("worktree ".length).trim();
+			// Strip only a carriage return: a folder name may end in whitespace.
+			const listedPath = line.slice("worktree ".length).replace(/\r$/, "");
 			if (resolve(listedPath) === expectedPath) {
 				return true;
 			}
@@ -185,7 +199,7 @@ export async function getStatusNoLock(repoPath: string): Promise<StatusResult> {
 				throw new Error("Git is not installed or not found in PATH");
 			}
 			const stderr = error.stderr || error.message || "";
-			if (stderr.includes("not a git repository")) {
+			if (isNotGitRepoMessage(stderr)) {
 				throw new NotGitRepoError(repoPath);
 			}
 		}
@@ -784,11 +798,13 @@ export async function removeWorktree(
 export async function getGitRoot(path: string): Promise<string> {
 	try {
 		const git = await getSimpleGitWithShellPath(path);
-		const root = await git.revparse(["--show-toplevel"]);
-		return root.trim();
+		// raw(), not revparse(): revparse trims stdout, which would drop trailing
+		// whitespace from a folder name. Strip only the line terminator.
+		const root = await git.raw(["rev-parse", "--show-toplevel"]);
+		return root.replace(/\r?\n$/, "");
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
-		if (message.toLowerCase().includes("not a git repository")) {
+		if (isNotGitRepoMessage(message)) {
 			throw new NotGitRepoError(path);
 		}
 		throw error;
@@ -805,7 +821,7 @@ export async function worktreeExists(
 
 		const lines = worktrees.split("\n");
 		const worktreePrefix = `worktree ${worktreePath}`;
-		return lines.some((line) => line.trim() === worktreePrefix);
+		return lines.some((line) => line.replace(/\r$/, "") === worktreePrefix);
 	} catch (error) {
 		console.error(`Failed to check worktree existence: ${error}`);
 		throw error;
