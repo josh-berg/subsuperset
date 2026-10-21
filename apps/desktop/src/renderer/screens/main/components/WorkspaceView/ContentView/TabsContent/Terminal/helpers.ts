@@ -16,6 +16,7 @@ import {
 	isAppHotkeyEvent,
 	isTerminalReservedEvent,
 } from "renderer/hotkeys";
+import { Utf8Base64 } from "renderer/lib/terminal/clipboard-base64";
 import {
 	createParserIdleGate,
 	type ParserIdleGate,
@@ -331,7 +332,9 @@ export function createTerminalInWrapper(options: CreateTerminalOptions = {}): {
 	const fitAddon = new FitAddon();
 	const searchAddon = new SearchAddon();
 
-	const clipboardAddon = new ClipboardAddon();
+	// Utf8Base64 replaces the addon's Latin-1 default codec, which garbles
+	// non-ASCII OSC 52 payloads.
+	const clipboardAddon = new ClipboardAddon(new Utf8Base64());
 	const unicode11Addon = new Unicode11Addon();
 	const imageAddon = new ImageAddon();
 

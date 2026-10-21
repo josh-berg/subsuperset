@@ -843,7 +843,9 @@ export function useTerminalLifecycle({
 				commandBufferRef.current += text;
 			},
 			onWrite: handleWrite,
-			isBracketedPasteEnabled: () => isBracketedPasteRef.current,
+			// xterm parses every byte itself, so its mode is never stale; the ref
+			// is only a mirror and a stale `false` makes each pasted newline submit.
+			isBracketedPasteEnabled: () => xterm.modes.bracketedPasteMode,
 		});
 		const cleanupCopy = setupCopyHandler(xterm);
 		const reattachRecovery = {
