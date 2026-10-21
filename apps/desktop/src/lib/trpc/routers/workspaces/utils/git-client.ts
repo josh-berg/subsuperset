@@ -13,12 +13,22 @@ const execFileAsync = promisify(execFile);
 // literally.
 const GIT_QUOTE_PATH_CONFIG = "core.quotePath=false";
 
+// The git task worker sets this for the task it is running, so every git
+// process built on that thread meanwhile dies with the task when the runner
+// cancels it. The main thread never sets it.
+let taskAbortSignal: AbortSignal | undefined;
+
+export function setGitTaskAbortSignal(signal: AbortSignal | undefined): void {
+	taskAbortSignal = signal;
+}
+
 export async function getSimpleGitWithShellPath(
 	repoPath?: string,
 ): Promise<SimpleGit> {
 	const git = simpleGit({
 		...(repoPath ? { baseDir: repoPath } : {}),
 		config: [GIT_QUOTE_PATH_CONFIG],
+		...(taskAbortSignal ? { abort: taskAbortSignal } : {}),
 	});
 	git.env(await getProcessEnvWithShellPath());
 	return git;
@@ -36,5 +46,6 @@ export async function execGitWithShellPath(
 		...options,
 		encoding: "utf8",
 		env,
+		signal: options?.signal ?? taskAbortSignal,
 	});
 }

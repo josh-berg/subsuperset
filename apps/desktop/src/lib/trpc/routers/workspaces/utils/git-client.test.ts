@@ -4,12 +4,18 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
+// Bun's mock.module leaks across files, so stub every export other suites use.
+const passthroughEnv = async (base: NodeJS.ProcessEnv = process.env) => ({
+	...base,
+});
 mock.module("./shell-env", () => ({
-	getProcessEnvWithShellPath: async (
-		base: NodeJS.ProcessEnv = process.env,
-	) => ({
-		...base,
-	}),
+	getShellEnvironment: async () => ({ ...process.env }),
+	augmentPathForMacOS: (env: NodeJS.ProcessEnv) => env,
+	clearShellEnvCache: () => {},
+	getProcessEnvWithShellEnv: passthroughEnv,
+	getProcessEnvWithShellPath: passthroughEnv,
+	execWithShellEnv: async () => ({ stdout: "", stderr: "" }),
+	applyShellEnvToProcess: async () => {},
 }));
 
 const { execGitWithShellPath, getSimpleGitWithShellPath } = await import(
