@@ -413,7 +413,8 @@ export class FsWatcherManager {
 					return;
 				}
 
-				state.pendingEvents.push(...events);
+				// Not push(...events): a huge batch overflows the call stack.
+				for (const event of events) state.pendingEvents.push(event);
 				if (state.flushTimer) {
 					return;
 				}
