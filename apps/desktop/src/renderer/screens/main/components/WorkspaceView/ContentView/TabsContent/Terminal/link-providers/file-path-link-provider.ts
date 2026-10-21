@@ -7,7 +7,21 @@ import {
 	type IParsedLink,
 	removeLinkSuffix,
 } from "@superset/shared/terminal-link-parsing";
-import type { ILink, ILinkProvider, Terminal } from "@xterm/xterm";
+import type { IBufferLine, ILink, ILinkProvider, Terminal } from "@xterm/xterm";
+
+// A line this close to full width counts as filled to the edge.
+const HARD_WRAP_COLS_TOLERANCE = 2;
+const MAX_HARD_WRAP_EXTENSION_LINES = 8;
+// What the first token of a hard-wrapped continuation line may look like.
+const HARD_WRAP_TAIL_PATTERN = /^[A-Za-z0-9._~@%+\-/]/;
+
+interface LineSegment {
+	index: number;
+	lineNumber: number;
+	text: string;
+	leadingTrim: number;
+	startOffset: number;
+}
 
 /**
  * A link provider that detects file paths in terminal output using VSCode's
@@ -47,26 +61,19 @@ export class FilePathLinkProvider implements ILinkProvider {
 			return;
 		}
 
-		const lineText = line.translateToString(true);
-		const lineLength = lineText.length;
-		const isCurrentLineWrapped = line.isWrapped;
-
-		// Get previous line if current is wrapped (for handling wrapped paths)
-		const prevLine = isCurrentLineWrapped
-			? this.terminal.buffer.active.getLine(lineIndex - 1)
-			: null;
-		const prevLineText = prevLine ? prevLine.translateToString(true) : "";
-		const prevLineLength = prevLineText.length;
-
-		// Get next line if it's wrapped (for handling wrapped paths)
-		const nextLine = this.terminal.buffer.active.getLine(lineIndex + 1);
-		const nextLineIsWrapped = nextLine?.isWrapped ?? false;
-		const nextLineText =
-			nextLineIsWrapped && nextLine ? nextLine.translateToString(true) : "";
-
-		// Combine lines for multi-line path detection
-		const combinedText = prevLineText + lineText + nextLineText;
-		const currentLineOffset = prevLineLength;
+		// Soft-wrapped lines and hard-wrapped path tokens are joined so a path
+		// split across lines is one link.
+		const segments = this.buildSegments(lineIndex);
+		const currentSegment = segments.find(
+			(segment) => segment.index === lineIndex,
+		);
+		if (!currentSegment) {
+			callback(undefined);
+			return;
+		}
+		const combinedText = segments.map((segment) => segment.text).join("");
+		const currentLineOffset = currentSegment.startOffset;
+		const currentLineLength = currentSegment.text.length;
 
 		// Use VSCode's link detection
 		const os = getCurrentOS();
@@ -89,7 +96,7 @@ export class FilePathLinkProvider implements ILinkProvider {
 
 			// Check if this link overlaps with the current line
 			const currentLineStart = currentLineOffset;
-			const currentLineEnd = currentLineOffset + lineLength;
+			const currentLineEnd = currentLineOffset + currentLineLength;
 
 			if (linkEnd <= currentLineStart || linkStart >= currentLineEnd) {
 				continue;
@@ -119,15 +126,7 @@ export class FilePathLinkProvider implements ILinkProvider {
 			}
 
 			// Calculate the range for highlighting
-			const range = this.calculateLinkRange(
-				linkStart,
-				linkEnd,
-				prevLineLength,
-				lineLength,
-				bufferLineNumber,
-				isCurrentLineWrapped,
-				nextLineIsWrapped,
-			);
+			const range = this.calculateLinkRange(linkStart, linkEnd, segments);
 
 			// Build the full link text for display
 			const fullLinkText = combinedText.substring(linkStart, linkEnd);
@@ -151,21 +150,13 @@ export class FilePathLinkProvider implements ILinkProvider {
 
 				// Check if this link overlaps with the current line
 				const fbCurrentLineStart = currentLineOffset;
-				const fbCurrentLineEnd = currentLineOffset + lineLength;
+				const fbCurrentLineEnd = currentLineOffset + currentLineLength;
 				if (linkEnd <= fbCurrentLineStart || linkStart >= fbCurrentLineEnd) {
 					continue;
 				}
 
 				// Calculate the range for highlighting
-				const range = this.calculateLinkRange(
-					linkStart,
-					linkEnd,
-					prevLineLength,
-					lineLength,
-					bufferLineNumber,
-					isCurrentLineWrapped,
-					nextLineIsWrapped,
-				);
+				const range = this.calculateLinkRange(linkStart, linkEnd, segments);
 
 				links.push({
 					range,
@@ -327,49 +318,126 @@ export class FilePathLinkProvider implements ILinkProvider {
 		this.onOpen(event, cleanPath, fallback.line, fallback.col);
 	}
 
+	private buildSegments(lineIndex: number): LineSegment[] {
+		const buffer = this.terminal.buffer.active;
+
+		// A soft wrap only reaches one line out, as it always has; hard-wrapped
+		// tails chain.
+		let first = lineIndex;
+		for (let steps = 0; steps < MAX_HARD_WRAP_EXTENSION_LINES; steps++) {
+			const line = buffer.getLine(first);
+			const prev = buffer.getLine(first - 1);
+			if (!line || !prev) break;
+			if (line.isWrapped) {
+				if (steps === 0) first--;
+				break;
+			}
+			if (!this.isHardWrapContinuation(prev, line)) break;
+			first--;
+		}
+
+		let last = lineIndex;
+		for (let steps = 0; steps < MAX_HARD_WRAP_EXTENSION_LINES; steps++) {
+			const line = buffer.getLine(last);
+			const next = buffer.getLine(last + 1);
+			if (!line || !next) break;
+			if (next.isWrapped) {
+				if (steps === 0) last++;
+				break;
+			}
+			if (!this.isHardWrapContinuation(line, next)) break;
+			last++;
+		}
+
+		const segments: LineSegment[] = [];
+		let offset = 0;
+		for (let index = first; index <= last; index++) {
+			const line = buffer.getLine(index);
+			if (!line) break;
+			const segment = this.toSegment(
+				index,
+				line,
+				index > first && !line.isWrapped,
+			);
+			segment.startOffset = offset;
+			offset += segment.text.length;
+			segments.push(segment);
+		}
+		return segments;
+	}
+
+	private toSegment(
+		index: number,
+		line: IBufferLine,
+		trimLeading: boolean,
+	): LineSegment {
+		const raw = line.translateToString(true);
+		const leadingTrim = trimLeading ? raw.length - raw.trimStart().length : 0;
+		return {
+			index,
+			lineNumber: index + 1,
+			text: raw.slice(leadingTrim),
+			leadingTrim,
+			startOffset: 0,
+		};
+	}
+
+	/**
+	 * TUIs such as Claude Code wrap long paths with a real newline at the pane
+	 * width, so xterm never marks the next line as wrapped. Treat `next` as the
+	 * tail of `prev` when `prev` runs to the edge of the terminal and ends in a
+	 * path-looking token that the first token of `next` could continue.
+	 */
+	private isHardWrapContinuation(
+		prev: IBufferLine | undefined,
+		next: IBufferLine | undefined,
+	): boolean {
+		if (!prev || !next || next.isWrapped) return false;
+		const cols = this.terminal.cols;
+		if (typeof cols !== "number" || cols <= 0) return false;
+		const prevText = prev.translateToString(true);
+		if (prevText.length < cols - HARD_WRAP_COLS_TOLERANCE) return false;
+
+		const prevToken = prevText.match(/\S+$/)?.[0];
+		if (!prevToken || !prevToken.includes("/")) return false;
+		if (/^[a-z][a-z0-9+.-]*:\/\//i.test(prevToken)) return false;
+
+		const nextToken = next
+			.translateToString(true)
+			.trimStart()
+			.match(/^\S+/)?.[0];
+		// A tail that opens with "/" is far more likely the next path in a list.
+		return (
+			!!nextToken &&
+			!nextToken.startsWith("/") &&
+			HARD_WRAP_TAIL_PATTERN.test(nextToken)
+		);
+	}
+
 	private calculateLinkRange(
 		matchIndex: number,
 		matchEnd: number,
-		prevLineLength: number,
-		lineLength: number,
-		bufferLineNumber: number,
-		isCurrentLineWrapped: boolean,
-		nextLineIsWrapped: boolean,
+		segments: LineSegment[],
 	): ILink["range"] {
-		const currentLineStart = prevLineLength;
-		const currentLineEnd = prevLineLength + lineLength;
-
-		const startsInPrevLine =
-			isCurrentLineWrapped && matchIndex < currentLineStart;
-		const endsInNextLine = nextLineIsWrapped && matchEnd > currentLineEnd;
-
-		let startY: number;
-		let startX: number;
-		let endY: number;
-		let endX: number;
-
-		if (startsInPrevLine) {
-			startY = bufferLineNumber - 1;
-			startX = matchIndex + 1;
-		} else {
-			startY = bufferLineNumber;
-			startX = matchIndex - currentLineStart + 1;
-		}
-
-		if (endsInNextLine) {
-			endY = bufferLineNumber + 1;
-			endX = matchEnd - currentLineEnd + 1;
-		} else if (matchEnd <= currentLineStart) {
-			endY = bufferLineNumber - 1;
-			endX = matchEnd + 1;
-		} else {
-			endY = bufferLineNumber;
-			endX = matchEnd - currentLineStart + 1;
-		}
+		const last = segments[segments.length - 1];
+		const startSegment =
+			segments.find(
+				(segment) => matchIndex < segment.startOffset + segment.text.length,
+			) ?? last;
+		const endSegment =
+			segments.find(
+				(segment) => matchEnd <= segment.startOffset + segment.text.length,
+			) ?? last;
 
 		return {
-			start: { x: startX, y: startY },
-			end: { x: endX, y: endY },
+			start: {
+				x: startSegment.leadingTrim + matchIndex - startSegment.startOffset + 1,
+				y: startSegment.lineNumber,
+			},
+			end: {
+				x: endSegment.leadingTrim + matchEnd - endSegment.startOffset + 1,
+				y: endSegment.lineNumber,
+			},
 		};
 	}
 }

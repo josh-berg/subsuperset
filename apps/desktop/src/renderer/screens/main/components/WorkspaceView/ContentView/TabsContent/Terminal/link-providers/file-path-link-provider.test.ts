@@ -14,12 +14,14 @@ function createMockLine(text: string, isWrapped = false): IBufferLine {
 
 function createMockTerminal(
 	lines: Array<{ text: string; isWrapped?: boolean }>,
+	cols?: number,
 ): Terminal {
 	const mockLines = lines.map((l) =>
 		createMockLine(l.text, l.isWrapped ?? false),
 	);
 
 	return {
+		cols,
 		buffer: {
 			active: {
 				getLine: (index: number) => mockLines[index] ?? null,
@@ -299,6 +301,57 @@ describe("FilePathLinkProvider", () => {
 			expect(links1[0].text).toBe("/path/one.ts");
 			expect(links2.length).toBe(1);
 			expect(links2[0].text).toBe("/path/two.ts");
+		});
+	});
+
+	describe("hard-wrapped paths (newline inserted by a TUI)", () => {
+		const cols = 42;
+		const full = "  /private/tmp/Users-josh-berg-Git-repos-h";
+		const expected =
+			"/private/tmp/Users-josh-berg-Git-repos-hudl/scratch/out.csv";
+
+		it("joins a path broken at the terminal width onto the next line", async () => {
+			expect(full.length).toBe(cols);
+			const terminal = createMockTerminal(
+				[{ text: full }, { text: "  udl/scratch/out.csv. Next" }],
+				cols,
+			);
+			const provider = new FilePathLinkProvider(terminal, mock());
+
+			const first = await getLinks(provider, 1);
+			const second = await getLinks(provider, 2);
+
+			expect(first[0].text).toBe(expected);
+			expect(first[0].range.start).toEqual({ x: 3, y: 1 });
+			expect(first[0].range.end.y).toBe(2);
+			expect(second[0].text).toBe(expected);
+			expect(second[0].range.start).toEqual({ x: 3, y: 1 });
+			expect(second[0].range.end).toEqual({ x: 22, y: 2 });
+		});
+
+		it("does not join when the first line stops short of the width", async () => {
+			const terminal = createMockTerminal(
+				[{ text: "  /private/tmp/short" }, { text: "  os-hudl/out.csv" }],
+				cols,
+			);
+			const provider = new FilePathLinkProvider(terminal, mock());
+
+			const first = await getLinks(provider, 1);
+
+			expect(first[0].text).toBe("/private/tmp/short");
+			expect(first[0].range.end.y).toBe(1);
+		});
+
+		it("does not join a following line that starts a new path", async () => {
+			const terminal = createMockTerminal(
+				[{ text: full }, { text: "/other/path.ts" }],
+				cols,
+			);
+			const provider = new FilePathLinkProvider(terminal, mock());
+
+			const first = await getLinks(provider, 1);
+
+			expect(first[0].range.end.y).toBe(1);
 		});
 	});
 
