@@ -451,14 +451,18 @@ export function WorkspaceListItem({
 														handleDeleteClick();
 													}}
 													className="flex items-center justify-center text-muted-foreground hover:text-foreground"
-													aria-label={isGitless ? "Close workspace" : "Close worktree"}
+													aria-label={
+														isGitless ? "Close workspace" : "Close worktree"
+													}
 												>
 													<HiMiniXMark className="size-3.5" />
 												</button>
 											</TooltipTrigger>
 											<TooltipContent side="top" sideOffset={4}>
 												<HotkeyLabel
-													label={isGitless ? "Close workspace" : "Close worktree"}
+													label={
+														isGitless ? "Close workspace" : "Close worktree"
+													}
 													id={isActive ? "CLOSE_WORKSPACE" : undefined}
 												/>
 											</TooltipContent>

@@ -343,7 +343,6 @@ export function ProjectSection({
 							projectId={projectId}
 							projectName={projectName}
 							projectColor={projectColor}
-	
 							mainRepoPath={mainRepoPath}
 							hideImage={hideImage}
 							iconUrl={iconUrl}
@@ -485,7 +484,6 @@ export function ProjectSection({
 						projectId={projectId}
 						projectName={projectName}
 						projectColor={projectColor}
-
 						mainRepoPath={mainRepoPath}
 						hideImage={hideImage}
 						iconUrl={iconUrl}

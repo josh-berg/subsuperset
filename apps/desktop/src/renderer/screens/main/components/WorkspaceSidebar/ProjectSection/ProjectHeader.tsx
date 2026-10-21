@@ -260,7 +260,6 @@ export function ProjectHeader({
 										projectId={projectId}
 										projectName={projectName}
 										projectColor={projectColor}
-	
 										iconUrl={iconUrl}
 										iconLetter={iconLetter}
 										hideImage={hideImage}
@@ -381,7 +380,6 @@ export function ProjectHeader({
 									projectId={projectId}
 									projectName={projectName}
 									projectColor={projectColor}
-
 									hideImage={hideImage}
 									iconUrl={iconUrl}
 									iconLetter={iconLetter}
@@ -406,7 +404,6 @@ export function ProjectHeader({
 									projectId={projectId}
 									projectName={projectName}
 									projectColor={projectColor}
-
 									hideImage={hideImage}
 									iconUrl={iconUrl}
 									iconLetter={iconLetter}

@@ -1,7 +1,7 @@
-import { useEffect, useRef } from "react";
-import type { MosaicBranch } from "react-mosaic-component";
-import { TbRefresh } from "react-icons/tb";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@superset/ui/tooltip";
+import { useEffect, useRef } from "react";
+import { TbRefresh } from "react-icons/tb";
+import type { MosaicBranch } from "react-mosaic-component";
 import { StatusIndicator } from "renderer/screens/main/components/StatusIndicator";
 import { WorkspaceRunIndicator } from "renderer/screens/main/components/WorkspaceRunIndicator";
 import {

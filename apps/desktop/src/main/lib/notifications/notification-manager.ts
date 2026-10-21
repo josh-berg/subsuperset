@@ -68,9 +68,7 @@ export class NotificationManager {
 		const statusText = isPermissionRequest
 			? "needs your attention"
 			: "has finished";
-		const body = context
-			? `${context} ${statusText}`
-			: statusText;
+		const body = context ? `${context} ${statusText}` : statusText;
 
 		const notification = this.deps.createNotification({
 			title: workspaceTitle,

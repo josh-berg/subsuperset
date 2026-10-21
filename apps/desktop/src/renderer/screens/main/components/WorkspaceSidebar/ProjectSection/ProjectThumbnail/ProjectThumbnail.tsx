@@ -1,7 +1,7 @@
 import { cn } from "@superset/ui/utils";
+import { useState } from "react";
 import { LuNetwork } from "react-icons/lu";
 import { PROJECT_COLOR_DEFAULT } from "shared/constants/project-colors";
-import { useState } from "react";
 
 interface ProjectThumbnailProps {
 	projectId: string;

@@ -372,7 +372,10 @@ if (!gotTheLock) {
 				.catch((err) => console.warn("[main] Cache clear failed:", err));
 
 		clearSupersetCache();
-		const cacheClearInterval = setInterval(clearSupersetCache, 24 * 60 * 60 * 1000);
+		const cacheClearInterval = setInterval(
+			clearSupersetCache,
+			24 * 60 * 60 * 1000,
+		);
 		cacheClearInterval.unref();
 
 		ensureProjectIconsDir();

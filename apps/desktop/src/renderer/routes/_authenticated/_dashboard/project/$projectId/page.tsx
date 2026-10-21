@@ -501,8 +501,7 @@ function ProjectPage() {
 										<Button
 											onClick={handleCreateWorkspace}
 											disabled={
-												!canContinueFromWorkspace ||
-												createWorkspace.isPending
+												!canContinueFromWorkspace || createWorkspace.isPending
 											}
 										>
 											{createWorkspace.isPending
