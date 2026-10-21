@@ -22,7 +22,7 @@ import { useTheme } from "renderer/stores/theme";
 import { useShallow } from "zustand/react/shallow";
 import { BrowserPane } from "./BrowserPane";
 import { ChatPane } from "./ChatPane";
-import { MosaicSplitOverlay } from "./components";
+import { MosaicSplitOverlay, PaneErrorBoundary } from "./components";
 import { DevToolsPane } from "./DevToolsPane";
 import { FileViewerPane } from "./FileViewerPane";
 import { TabPane } from "./TabPane";
@@ -177,7 +177,7 @@ export function TabView({ tab }: TabViewProps) {
 		[tab.id, updateTabLayout, removePane],
 	);
 
-	const renderPane = useCallback(
+	const renderPaneContent = useCallback(
 		(paneId: string, path: MosaicBranch[]) => {
 			const paneInfo = tabPanes[paneId];
 
@@ -297,6 +297,15 @@ export function TabView({ tab }: TabViewProps) {
 			movePaneToTab,
 			movePaneToNewTab,
 		],
+	);
+
+	const renderPane = useCallback(
+		(paneId: string, path: MosaicBranch[]) => (
+			<PaneErrorBoundary paneId={paneId} onClosePane={() => removePane(paneId)}>
+				{renderPaneContent(paneId, path)}
+			</PaneErrorBoundary>
+		),
+		[renderPaneContent, removePane],
 	);
 
 	const handleSplitLayoutChange = useCallback(
