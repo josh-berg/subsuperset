@@ -132,6 +132,7 @@ export function ChildRepoItem({
 					/>
 				)}
 				{branch && workspaceId && (
+					// biome-ignore lint/a11y/useSemanticElements: nested inside the row <button>, so a real <button> would be invalid HTML
 					<span
 						role="button"
 						tabIndex={0}

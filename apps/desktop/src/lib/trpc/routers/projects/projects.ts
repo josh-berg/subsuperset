@@ -1853,12 +1853,14 @@ export const createProjectsRouter = (getWindow: () => BrowserWindow | null) => {
 								.run();
 						}
 						if (input.deleteFromDisk && !project.isGitless) {
-							localDb
+							const childWorktrees = localDb
 								.select({ path: worktrees.path })
 								.from(worktrees)
 								.where(eq(worktrees.projectId, child.id))
-								.all()
-								.forEach((wt) => worktreePathsToDelete.push(wt.path));
+								.all();
+							for (const wt of childWorktrees) {
+								worktreePathsToDelete.push(wt.path);
+							}
 						}
 						localDb
 							.delete(worktrees)
@@ -1897,12 +1899,14 @@ export const createProjectsRouter = (getWindow: () => BrowserWindow | null) => {
 				}
 
 				if (input.deleteFromDisk && !project.isGitless) {
-					localDb
+					const projectWorktrees = localDb
 						.select({ path: worktrees.path })
 						.from(worktrees)
 						.where(eq(worktrees.projectId, input.id))
-						.all()
-						.forEach((wt) => worktreePathsToDelete.push(wt.path));
+						.all();
+					for (const wt of projectWorktrees) {
+						worktreePathsToDelete.push(wt.path);
+					}
 				}
 				localDb
 					.delete(worktrees)

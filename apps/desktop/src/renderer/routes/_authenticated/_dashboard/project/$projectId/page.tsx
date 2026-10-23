@@ -249,11 +249,6 @@ function ProjectPage() {
 		}
 	};
 
-	const handleContinueToSetup = () => {
-		if (!canContinueFromWorkspace) return;
-		setStep("setup");
-	};
-
 	const handleSaveAndCreateWorkspace = async () => {
 		const commands =
 			setupMode === "checklist"
