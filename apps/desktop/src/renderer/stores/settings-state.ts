@@ -10,7 +10,6 @@ export type SettingsSection =
 	| "repo-groups"
 	| "agents"
 	| "terminal"
-	| "models"
 	| "permissions"
 	| "project";
 

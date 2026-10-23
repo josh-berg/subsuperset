@@ -8,7 +8,7 @@ import {
 	HiOutlineShieldCheck,
 	HiOutlineSparkles,
 } from "react-icons/hi2";
-import { LuBrain, LuGitBranch, LuKeyboard, LuLayers } from "react-icons/lu";
+import { LuGitBranch, LuKeyboard, LuLayers } from "react-icons/lu";
 import { electronTrpc } from "renderer/lib/electron-trpc";
 import type { SettingsSection } from "renderer/stores/settings-state";
 
@@ -25,7 +25,6 @@ type SettingsRoute =
 	| "/settings/repo-groups"
 	| "/settings/agents"
 	| "/settings/terminal"
-	| "/settings/models"
 	| "/settings/permissions";
 
 interface SectionItem {
@@ -97,12 +96,6 @@ const SECTION_GROUPS: SectionGroup[] = [
 				section: "terminal",
 				label: "Terminal",
 				icon: <HiOutlineCommandLine className="h-4 w-4" />,
-			},
-			{
-				id: "/settings/models",
-				section: "models",
-				label: "Models",
-				icon: <LuBrain className="h-4 w-4" />,
 			},
 		],
 	},

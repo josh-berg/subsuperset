@@ -31,8 +31,6 @@ export const SETTING_ITEM_ID = {
 	TERMINAL_SESSIONS: "terminal-sessions",
 	TERMINAL_LINK_BEHAVIOR: "terminal-link-behavior",
 
-	MODELS_ANTHROPIC: "models-anthropic",
-
 	PROJECT_NAME: "project-name",
 	PROJECT_PATH: "project-path",
 	PROJECT_SCRIPTS: "project-scripts",
@@ -359,14 +357,13 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
 		section: "behavior",
 		title: "Open links in app browser",
 		description:
-			"Open links from chat and terminal in the built-in browser instead of your default browser",
+			"Open links from the terminal in the built-in browser instead of your default browser",
 		keywords: [
 			"browser",
 			"links",
 			"in-app",
 			"external",
 			"open",
-			"chat",
 			"terminal",
 			"url",
 		],
@@ -384,7 +381,6 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
 			"visible",
 			"show",
 			"hide",
-			"superset chat",
 			"claude",
 			"codex",
 			"pi",
@@ -421,7 +417,6 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
 			"variables",
 			"prompt",
 			"task",
-			"superset chat",
 			"launch",
 		],
 	},
@@ -480,22 +475,6 @@ export const SETTINGS_ITEMS: SettingsItem[] = [
 			"cmd",
 			"ctrl",
 			"browser",
-		],
-	},
-	{
-		id: SETTING_ITEM_ID.MODELS_ANTHROPIC,
-		section: "models",
-		title: "Anthropic Model Auth",
-		description: "Connect Anthropic for workspace naming and small model tasks",
-		keywords: [
-			"models",
-			"anthropic",
-			"claude",
-			"oauth",
-			"api key",
-			"auth",
-			"workspace naming",
-			"auto name",
 		],
 	},
 	{

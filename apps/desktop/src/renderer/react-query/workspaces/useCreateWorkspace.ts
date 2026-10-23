@@ -1,7 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useRef } from "react";
 import { electronTrpc } from "renderer/lib/electron-trpc";
-import { showWorkspaceAutoNameWarningToast } from "renderer/lib/workspaces/showWorkspaceAutoNameWarningToast";
 import { invalidateWorkspaceQueries } from "renderer/react-query/workspaces/invalidateWorkspaceQueries";
 import { navigateToWorkspace } from "renderer/routes/_authenticated/_dashboard/utils/workspace-navigation";
 import type { PendingTerminalSetup } from "renderer/stores/workspace-init";
@@ -66,15 +65,6 @@ export function useCreateWorkspace(options?: UseCreateWorkspaceOptions) {
 					message: "Preparing...",
 				};
 				updateProgress(optimisticProgress);
-			}
-
-			if (!data.isInitializing && data.autoRenameWarning) {
-				showWorkspaceAutoNameWarningToast({
-					description: data.autoRenameWarning,
-					onOpenModelAuthSettings: () => {
-						void navigate({ to: "/settings/models" });
-					},
-				});
 			}
 
 			if (!data.wasExisting) {

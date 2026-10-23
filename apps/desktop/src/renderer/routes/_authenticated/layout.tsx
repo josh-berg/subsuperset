@@ -4,13 +4,12 @@ import {
 	useLocation,
 	useNavigate,
 } from "@tanstack/react-router";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { DndProvider } from "react-dnd";
 import { NewWorkspaceModal } from "renderer/components/NewWorkspaceModal";
 import { migrateHotkeyOverrides } from "renderer/hotkeys/migrate";
 import { dragDropManager } from "renderer/lib/dnd";
 import { electronTrpc } from "renderer/lib/electron-trpc";
-import { showWorkspaceAutoNameWarningToast } from "renderer/lib/workspaces/showWorkspaceAutoNameWarningToast";
 import { InitGitDialog } from "renderer/react-query/projects/InitGitDialog";
 import { WorkspaceInitEffects } from "renderer/screens/main/components/WorkspaceInitEffects";
 import { useSettingsStore } from "renderer/stores/settings-state";
@@ -35,7 +34,6 @@ function AppLayout() {
 	const location = useLocation();
 	const setOriginRoute = useSettingsStore((s) => s.setOriginRoute);
 	const utils = electronTrpc.useUtils();
-	const shownWorkspaceInitWarningsRef = useRef(new Set<string>());
 
 	useAgentHookListener();
 	useDockBadge();
@@ -79,18 +77,6 @@ function AppLayout() {
 	electronTrpc.workspaces.onInitProgress.useSubscription(undefined, {
 		onData: (progress) => {
 			updateInitProgress(progress);
-			if (
-				progress.warning &&
-				!shownWorkspaceInitWarningsRef.current.has(progress.workspaceId)
-			) {
-				shownWorkspaceInitWarningsRef.current.add(progress.workspaceId);
-				showWorkspaceAutoNameWarningToast({
-					description: progress.warning,
-					onOpenModelAuthSettings: () => {
-						void navigate({ to: "/settings/models" });
-					},
-				});
-			}
 			if (progress.step === "ready" || progress.step === "failed") {
 				utils.workspaces.getAllGrouped.invalidate();
 				utils.workspaces.get.invalidate({ id: progress.workspaceId });

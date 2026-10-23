@@ -4,7 +4,6 @@ import { track } from "main/lib/analytics";
 import { localDb } from "main/lib/local-db";
 import { workspaceInitManager } from "main/lib/workspace-init-manager";
 import type { WorkspaceInitStep } from "shared/types/workspace-init";
-import { attemptWorkspaceAutoRenameFromPrompt } from "./ai-name";
 import { resolveWorkspaceBaseBranch } from "./base-branch";
 import { getBranchBaseConfig, setBranchBaseConfig } from "./base-branch-config";
 import {
@@ -28,7 +27,6 @@ export interface WorkspaceInitParams {
 	branch: string;
 	mainRepoPath: string;
 	startPointBranch?: string;
-	namingPrompt?: string;
 	/** If true, use an existing branch instead of creating a new one */
 	useExistingBranch?: boolean;
 	/** If true, skip worktree creation (worktree already exists on disk) */
@@ -49,32 +47,16 @@ export async function initializeWorkspaceWorktree({
 	branch,
 	mainRepoPath,
 	startPointBranch,
-	namingPrompt,
 	useExistingBranch,
 	skipWorktreeCreation,
 }: WorkspaceInitParams): Promise<void> {
 	const manager = workspaceInitManager;
 	const completeReadyState = async (): Promise<void> => {
-		let warning: string | undefined;
-		try {
-			const autoRenameResult = await attemptWorkspaceAutoRenameFromPrompt({
-				workspaceId,
-				prompt: namingPrompt,
-			});
-			warning = autoRenameResult.warning;
-		} catch (error) {
-			console.warn("[workspace-init] Auto naming failed", {
-				workspaceId,
-				error: error instanceof Error ? error.message : String(error),
-			});
-			warning = "Couldn't auto-name this workspace.";
-		}
-
 		if (manager.isCancellationRequested(workspaceId)) {
 			return;
 		}
 
-		manager.updateProgress(workspaceId, "ready", "Ready", undefined, warning);
+		manager.updateProgress(workspaceId, "ready", "Ready");
 	};
 
 	try {
