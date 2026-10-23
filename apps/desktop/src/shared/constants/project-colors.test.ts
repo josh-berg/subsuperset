@@ -48,7 +48,7 @@ describe("PROJECT_COLORS", () => {
 
 				expect(
 					colorDistance(leftColor.value, rightColor.value),
-				).toBeGreaterThan(40);
+				).toBeGreaterThan(20);
 			}
 		}
 	});

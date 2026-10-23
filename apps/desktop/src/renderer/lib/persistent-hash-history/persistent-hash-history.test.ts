@@ -1,4 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import {
+	afterAll,
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	mock,
+} from "bun:test";
 
 // Mock localStorage
 const storage = new Map<string, string>();
@@ -24,6 +32,14 @@ Object.defineProperty(globalThis, "localStorage", {
 	writable: true,
 	configurable: true,
 });
+
+// Bun runs every test file in one process; restore the shared globals so
+// later files still see the preload's window/localStorage.
+const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+const originalLocalStorage = Object.getOwnPropertyDescriptor(
+	globalThis,
+	"localStorage",
+);
 
 Object.defineProperty(globalThis, "window", {
 	value: {
@@ -52,6 +68,16 @@ beforeEach(() => {
 
 afterEach(() => {
 	storage.clear();
+});
+
+afterAll(() => {
+	for (const [key, descriptor] of [
+		["window", originalWindow],
+		["localStorage", originalLocalStorage],
+	] as const) {
+		if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+		else delete (globalThis as Record<string, unknown>)[key];
+	}
 });
 
 describe("createPersistentHashHistory", () => {

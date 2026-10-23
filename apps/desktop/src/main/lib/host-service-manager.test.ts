@@ -60,7 +60,9 @@ describe("HostServiceManager", () => {
 			(baseEnv) => getProcessEnvWithShellPathMock(baseEnv),
 		);
 
+		const baseElectron = await import("electron");
 		mock.module("electron", () => ({
+			...baseElectron,
 			app: {
 				isPackaged: false,
 				getAppPath: () => "/tmp/app",
