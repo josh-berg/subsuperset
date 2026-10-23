@@ -1,6 +1,7 @@
 import { join } from "node:path";
-import { BrowserWindow, shell } from "electron";
+import { BrowserWindow } from "electron";
 import { registerRoute } from "lib/window-loader";
+import { safeOpenExternal } from "main/lib/safe-url";
 import type { WindowProps } from "shared/types";
 
 export function createWindow({ id, ...settings }: WindowProps) {
@@ -8,10 +9,7 @@ export function createWindow({ id, ...settings }: WindowProps) {
 
 	// Open external URLs in the system browser instead of Electron
 	window.webContents.setWindowOpenHandler(({ url }) => {
-		if (url.startsWith("http://") || url.startsWith("https://")) {
-			shell.openExternal(url);
-			return { action: "deny" };
-		}
+		void safeOpenExternal(url);
 		return { action: "deny" };
 	});
 
