@@ -1,5 +1,5 @@
 import { existsSync, statSync } from "node:fs";
-import { access, mkdir, rm } from "node:fs/promises";
+import { access, mkdir, realpath, rm } from "node:fs/promises";
 import { basename, join, sep } from "node:path";
 import {
 	BRANCH_PREFIX_MODES,
@@ -270,6 +270,41 @@ const SAFE_REPO_NAME_REGEX = /^[a-zA-Z0-9._\- ]+$/;
 const ALLOWED_URL_PROTOCOLS = new Set(["http:", "https:", "ssh:", "git:"]);
 const SSH_GIT_URL_REGEX = /^[\w.-]+@[\w.-]+:[\w./-]+$/;
 const BRANCH_SEARCH_LIMIT = 5000;
+
+/** Reduce a git remote URL to `host/owner/repo` so HTTPS and SSH forms compare equal. */
+function normalizeRemoteUrl(urlInput: string): string {
+	let value = urlInput.trim().replace(/\/+$/, "");
+	try {
+		const parsed = new URL(value);
+		value = `${parsed.hostname}${parsed.pathname}`;
+	} catch {
+		const sshMatch = value.match(/^[\w.-]+@([\w.-]+):(.+)$/);
+		if (sshMatch) value = `${sshMatch[1]}/${sshMatch[2]}`;
+	}
+	return value
+		.replace(/\.git$/, "")
+		.replace(/\/+$/, "")
+		.toLowerCase();
+}
+
+/**
+ * True when `path` is the root of a git checkout whose `origin` matches `url`.
+ * Lets cloneRepo adopt a copy that is already on disk instead of failing.
+ */
+async function isExistingCloneOf(path: string, url: string): Promise<boolean> {
+	try {
+		const [root, canonicalPath] = await Promise.all([
+			getGitRoot(path),
+			realpath(path),
+		]);
+		if (root !== canonicalPath) return false;
+		const git = await getSimpleGitWithShellPath(path);
+		const origin = (await git.raw(["remote", "get-url", "origin"])).trim();
+		return normalizeRemoteUrl(origin) === normalizeRemoteUrl(url);
+	} catch {
+		return false;
+	}
+}
 
 /** Extract the repository name from a git URL (HTTPS, SSH, or git:// protocol). */
 function extractRepoName(urlInput: string): string | null {
@@ -1404,12 +1439,29 @@ export const createProjectsRouter = (getWindow: () => BrowserWindow | null) => {
 						}
 					}
 
-					// Check if target directory already exists (but not our project)
+					// Folder already exists on disk (but isn't a project yet). If it's a
+					// checkout of this same repo, adopt it instead of cloning over it.
 					if (existsSync(clonePath)) {
+						if (await isExistingCloneOf(clonePath, input.url)) {
+							const defaultBranch = await getDefaultBranch(clonePath);
+							const project = upsertProject(clonePath, defaultBranch);
+							await ensureMainWorkspace(project);
+
+							track("project_opened", {
+								project_id: project.id,
+								method: "clone",
+							});
+
+							return {
+								canceled: false as const,
+								success: true as const,
+								project,
+							};
+						}
 						return {
 							canceled: false as const,
 							success: false as const,
-							error: `A folder named "${repoName}" already exists at this location. Please choose a different destination.`,
+							error: `A folder named "${repoName}" already exists at this location and is not a clone of this repository. Please choose a different destination.`,
 						};
 					}
 
