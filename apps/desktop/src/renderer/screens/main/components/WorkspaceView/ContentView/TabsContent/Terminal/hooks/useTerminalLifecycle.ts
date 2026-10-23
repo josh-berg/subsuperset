@@ -5,6 +5,7 @@ import type { MutableRefObject, RefObject } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { writeCommandInPane } from "renderer/lib/terminal/launch-command";
 import { runWhenParserIdle } from "renderer/lib/terminal/parser-idle-gate";
+import { trimTerminalSelection } from "renderer/lib/terminal/trim-terminal-selection";
 import { electronTrpcClient } from "renderer/lib/trpc-client";
 import { useTabsStore } from "renderer/stores/tabs/store";
 import { killTerminalForPane } from "renderer/stores/tabs/utils/terminal-cleanup";
@@ -821,10 +822,7 @@ export function useTerminalLifecycle({
 		const handleGetSelection = () => {
 			const selection = xterm.getSelection();
 			if (!selection) return "";
-			return selection
-				.split("\n")
-				.map((line) => line.trimEnd())
-				.join("\n");
+			return trimTerminalSelection(selection);
 		};
 
 		const handlePaste = (text: string) => {

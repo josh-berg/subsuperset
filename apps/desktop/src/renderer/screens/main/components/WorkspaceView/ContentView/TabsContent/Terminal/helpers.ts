@@ -23,6 +23,7 @@ import {
 	wrapWrite,
 } from "renderer/lib/terminal/parser-idle-gate";
 import { installInputModeReclaimer } from "renderer/lib/terminal/terminalInputModeReclaimer";
+import { trimTerminalSelection } from "renderer/lib/terminal/trim-terminal-selection";
 import { electronTrpcClient as trpcClient } from "renderer/lib/trpc-client";
 import { toXtermTheme } from "renderer/stores/theme/utils";
 import {
@@ -494,10 +495,7 @@ export function setupCopyHandler(xterm: XTerm): () => void {
 		if (!selection) return;
 
 		// Trim trailing whitespace from each line while preserving intentional newlines
-		const trimmedText = selection
-			.split("\n")
-			.map((line) => line.trimEnd())
-			.join("\n");
+		const trimmedText = trimTerminalSelection(selection);
 
 		// On Linux/Wayland in Electron, clipboardData can be null for copy events.
 		// Only cancel default behavior when we can write directly to event clipboardData.
