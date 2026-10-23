@@ -48,6 +48,37 @@ const OVERFLOW_RESCAN_INITIAL_MS = 5_000;
 const OVERFLOW_RESCAN_MAX_MS = 60_000;
 const OVERFLOW_BACKOFF_RESET_MS = 120_000;
 
+const SLOW_NATIVE_OPERATION_MS = 10_000;
+
+// parcel shares one native backend per process. A subscribe issued while the
+// last unsubscribe is in flight joins a backend that is then destroyed, so it
+// resolves but never delivers. Run native calls one at a time.
+let nativeOperationTail: Promise<unknown> = Promise.resolve();
+
+function runNativeOperation<T>(
+	kind: "subscribe" | "unsubscribe",
+	rootPath: string,
+	operation: () => Promise<T>,
+): Promise<T> {
+	const result = nativeOperationTail.then(async () => {
+		const startedAt = Date.now();
+		const slowTimer = setTimeout(() => {
+			console.warn(
+				"[workspace-fs/watch] native watcher call is stuck; later watches wait behind it",
+				{ kind, rootPath, elapsedMs: Date.now() - startedAt },
+			);
+		}, SLOW_NATIVE_OPERATION_MS);
+		slowTimer.unref?.();
+		try {
+			return await operation();
+		} finally {
+			clearTimeout(slowTimer);
+		}
+	});
+	nativeOperationTail = result.catch(() => {});
+	return result;
+}
+
 type WatchListener = (batch: { events: FsWatchEvent[] }) => void;
 
 interface WatcherState {
@@ -384,7 +415,7 @@ export class FsWatcherManager {
 			}
 
 			this.clearOverflowRescan(currentState);
-			await currentState.subscription.unsubscribe();
+			await this.unsubscribeNative(currentState);
 			this.watchers.delete(absolutePath);
 		};
 	}
@@ -397,7 +428,7 @@ export class FsWatcherManager {
 					state.flushTimer = null;
 				}
 				this.clearOverflowRescan(state);
-				await state.subscription.unsubscribe();
+				await this.unsubscribeNative(state);
 			}),
 		);
 		this.watchers.clear();
@@ -442,42 +473,47 @@ export class FsWatcherManager {
 			state.absolutePath,
 		);
 
-		state.subscription = await subscribeToFilesystem(
+		state.subscription = await runNativeOperation(
+			"subscribe",
 			state.absolutePath,
-			(error, events) => {
-				if (error) {
-					console.error("[workspace-fs/watch] Watcher error:", {
-						absolutePath: state.absolutePath,
-						error: toErrorMessage(error),
-					});
-					this.scheduleOverflowRescan(state);
-					return;
-				}
+			() =>
+				subscribeToFilesystem(
+					state.absolutePath,
+					(error, events) => {
+						if (error) {
+							console.error("[workspace-fs/watch] Watcher error:", {
+								absolutePath: state.absolutePath,
+								error: toErrorMessage(error),
+							});
+							this.scheduleOverflowRescan(state);
+							return;
+						}
 
-				if (events.length === 0) {
-					return;
-				}
+						if (events.length === 0) {
+							return;
+						}
 
-				// Not push(...events): a huge batch overflows the call stack.
-				for (const event of events) state.pendingEvents.push(event);
-				if (state.flushTimer) {
-					return;
-				}
+						// Not push(...events): a huge batch overflows the call stack.
+						for (const event of events) state.pendingEvents.push(event);
+						if (state.flushTimer) {
+							return;
+						}
 
-				const flushTimer = setTimeout(() => {
-					state.flushTimer = null;
-					const pendingEvents = state.pendingEvents.splice(
-						0,
-						state.pendingEvents.length,
-					);
-					void this.flushPendingEvents(state, pendingEvents);
-				}, this.debounceMs);
-				state.flushTimer = flushTimer;
-				flushTimer.unref?.();
-			},
-			{
-				ignore: [...this.ignore, ...nestedRepoIgnores],
-			},
+						const flushTimer = setTimeout(() => {
+							state.flushTimer = null;
+							const pendingEvents = state.pendingEvents.splice(
+								0,
+								state.pendingEvents.length,
+							);
+							void this.flushPendingEvents(state, pendingEvents);
+						}, this.debounceMs);
+						state.flushTimer = flushTimer;
+						flushTimer.unref?.();
+					},
+					{
+						ignore: [...this.ignore, ...nestedRepoIgnores],
+					},
+				),
 		);
 
 		return state;
@@ -507,6 +543,12 @@ export class FsWatcherManager {
 			});
 			return [];
 		}
+	}
+
+	private unsubscribeNative(state: WatcherState): Promise<void> {
+		return runNativeOperation("unsubscribe", state.absolutePath, () =>
+			state.subscription.unsubscribe(),
+		);
 	}
 
 	private clearOverflowRescan(state: WatcherState): void {
