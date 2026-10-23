@@ -33,7 +33,25 @@ export const DEFAULT_IGNORE_PATTERNS = [
 	"**/.next/**",
 	"**/.turbo/**",
 	"**/coverage/**",
+	// Agent tools pile up sibling git worktrees under these dirs (a full repo
+	// copy each). The nested-repo prune in watch.ts catches any worktree by its
+	// `.git` marker; these globs are the cheap native backstop for known
+	// conventions and still prune if that scan is truncated.
+	"**/.worktrees/**",
+	"**/.claude/worktrees/**",
+	"**/.conductor/**",
 ];
+
+/**
+ * Directory basenames the nested-repo scan (watch.ts) skips while walking.
+ * Derived from the single-segment `**\/<name>/**` entries above so the two
+ * ignore surfaces can't drift.
+ */
+export const DEFAULT_IGNORE_DIR_NAMES: ReadonlySet<string> = new Set(
+	DEFAULT_IGNORE_PATTERNS.map(
+		(pattern) => /^\*\*\/([^/*]+)\/\*\*$/.exec(pattern)?.[1],
+	).filter((name): name is string => name !== undefined),
+);
 
 interface SearchIndexEntry {
 	absolutePath: string;

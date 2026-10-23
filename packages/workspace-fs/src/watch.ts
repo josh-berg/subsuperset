@@ -6,8 +6,10 @@ import {
 	subscribe as subscribeToFilesystem,
 } from "@parcel/watcher";
 import { toErrorMessage } from "./error-message";
+import { findNestedRepoRoots } from "./find-nested-repos";
 import { normalizeAbsolutePath } from "./paths";
 import {
+	DEFAULT_IGNORE_DIR_NAMES,
 	DEFAULT_IGNORE_PATTERNS,
 	invalidateSearchIndexesForRoot,
 	patchSearchIndexesForRoot,
@@ -26,6 +28,16 @@ export interface InternalWatchEvent {
 	oldAbsolutePath?: string;
 	isDirectory: boolean;
 }
+
+// Backslash-escape characters picomatch treats as magic so a path is matched
+// literally when embedded in an ignore glob.
+function escapeGlobMagic(input: string): string {
+	return input.replace(/[\\*?{}()[\]!+@|^$]/g, (char) => `\\${char}`);
+}
+
+// Bounds attach latency on a slow FS; the static ignore globs still cover the
+// known worktree conventions if the scan truncates.
+const NESTED_REPO_SCAN_DEADLINE_MS = 3_000;
 
 type WatchListener = (batch: { events: FsWatchEvent[] }) => void;
 
@@ -394,6 +406,10 @@ export class FsWatcherManager {
 			throw error;
 		}
 
+		const nestedRepoIgnores = await this.computeNestedRepoIgnores(
+			state.absolutePath,
+		);
+
 		state.subscription = await subscribeToFilesystem(
 			state.absolutePath,
 			(error, events) => {
@@ -431,11 +447,37 @@ export class FsWatcherManager {
 				flushTimer.unref?.();
 			},
 			{
-				ignore: this.ignore,
+				ignore: [...this.ignore, ...nestedRepoIgnores],
 			},
 		);
 
 		return state;
+	}
+
+	/** Best-effort: a failed or truncated scan just watches more than ideal. */
+	private async computeNestedRepoIgnores(rootPath: string): Promise<string[]> {
+		try {
+			const { roots, truncated } = await findNestedRepoRoots(rootPath, {
+				pruneDirNames: DEFAULT_IGNORE_DIR_NAMES,
+				deadlineMs: NESTED_REPO_SCAN_DEADLINE_MS,
+			});
+			if (truncated) {
+				console.warn(
+					"[workspace-fs/watch] nested-repo scan hit cap; some nested repos may still be watched",
+					{ absolutePath: rootPath, found: roots.length },
+				);
+			}
+			// parcel matches ignore globs relative to the watch root.
+			return roots.map(
+				(root) => `${escapeGlobMagic(path.relative(rootPath, root))}/**`,
+			);
+		} catch (error) {
+			console.error("[workspace-fs/watch] nested-repo scan failed", {
+				absolutePath: rootPath,
+				error: toErrorMessage(error),
+			});
+			return [];
+		}
 	}
 
 	private async flushPendingEvents(
