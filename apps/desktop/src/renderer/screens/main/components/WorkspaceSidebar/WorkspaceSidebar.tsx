@@ -8,20 +8,15 @@ import { useAutoFetchBranches } from "../../hooks/useAutoFetchBranches";
 import { MultiDragPreview } from "./MultiDragPreview";
 import { PortsList } from "./PortsList";
 import { ProjectSection } from "./ProjectSection";
-import { SetupScriptCard } from "./SetupScriptCard";
 import { SidebarDropZone } from "./SidebarDropZone";
 import { WorkspaceSidebarFooter } from "./WorkspaceSidebarFooter";
 
 interface WorkspaceSidebarProps {
 	isCollapsed?: boolean;
-	activeProjectId: string | null;
-	activeProjectName: string | null;
 }
 
 export function WorkspaceSidebar({
 	isCollapsed = false,
-	activeProjectId,
-	activeProjectName,
 }: WorkspaceSidebarProps) {
 	const { groups } = useWorkspaceShortcuts();
 	useAutoFetchBranches();
@@ -231,12 +226,6 @@ export function WorkspaceSidebar({
 			</div>
 
 			{!isCollapsed && <PortsList />}
-
-			<SetupScriptCard
-				isCollapsed={isCollapsed}
-				projectId={activeProjectId}
-				projectName={activeProjectName}
-			/>
 
 			<WorkspaceSidebarFooter
 				isCollapsed={isCollapsed}

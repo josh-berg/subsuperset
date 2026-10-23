@@ -1,38 +1,12 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { access } from "node:fs/promises";
 import { join } from "node:path";
-import { projects, type SelectProject } from "@superset/local-db";
+import { projects } from "@superset/local-db";
 import { eq } from "drizzle-orm";
 import { localDb } from "main/lib/local-db";
 import type { SetupAction, SetupDetectionResult } from "shared/types/config";
 import { z } from "zod";
 import { publicProcedure, router } from "../..";
-import { loadSetupConfig } from "../workspaces/utils/setup";
-
-function hasConfiguredScripts(
-	project: Pick<SelectProject, "id" | "mainRepoPath">,
-) {
-	const config = loadSetupConfig({
-		mainRepoPath: project.mainRepoPath,
-		projectId: project.id,
-	});
-	const setup = Array.isArray(config?.setup)
-		? config.setup.filter(
-				(s): s is string => typeof s === "string" && s.trim().length > 0,
-			)
-		: [];
-	const teardown = Array.isArray(config?.teardown)
-		? config.teardown.filter(
-				(s): s is string => typeof s === "string" && s.trim().length > 0,
-			)
-		: [];
-	const run = Array.isArray(config?.run)
-		? config.run.filter(
-				(s): s is string => typeof s === "string" && s.trim().length > 0,
-			)
-		: [];
-	return setup.length > 0 || teardown.length > 0 || run.length > 0;
-}
 
 const CONFIG_TEMPLATE = `{
   "setup": [],
@@ -360,39 +334,6 @@ function ensureConfigExists(mainRepoPath: string): string {
 
 export const createConfigRouter = () => {
 	return router({
-		// Check if we should show the setup card for a project
-		shouldShowSetupCard: publicProcedure
-			.input(z.object({ projectId: z.string() }))
-			.query(async ({ input }) => {
-				const project = localDb
-					.select()
-					.from(projects)
-					.where(eq(projects.id, input.projectId))
-					.get();
-				if (!project) {
-					return false;
-				}
-
-				// Don't show if already dismissed or if config has scripts
-				if (project.configToastDismissed) {
-					return false;
-				}
-
-				return !hasConfiguredScripts(project);
-			}),
-
-		// Mark the setup card as dismissed for a project
-		dismissSetupCard: publicProcedure
-			.input(z.object({ projectId: z.string() }))
-			.mutation(({ input }) => {
-				localDb
-					.update(projects)
-					.set({ configToastDismissed: true })
-					.where(eq(projects.id, input.projectId))
-					.run();
-				return { success: true };
-			}),
-
 		// Get the config file path
 		getConfigFilePath: publicProcedure
 			.input(z.object({ projectId: z.string() }))

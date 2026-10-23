@@ -103,11 +103,7 @@ function DashboardLayout() {
 							setWorkspaceSidebarWidth(DEFAULT_WORKSPACE_SIDEBAR_WIDTH)
 						}
 					>
-						<WorkspaceSidebar
-							isCollapsed={isWorkspaceSidebarCollapsed()}
-							activeProjectId={currentWorkspace?.projectId ?? null}
-							activeProjectName={currentWorkspace?.project?.name ?? null}
-						/>
+						<WorkspaceSidebar isCollapsed={isWorkspaceSidebarCollapsed()} />
 					</ResizablePanel>
 				)}
 				<div className="flex flex-1 min-h-0 min-w-0">
