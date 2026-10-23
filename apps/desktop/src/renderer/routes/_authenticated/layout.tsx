@@ -109,6 +109,8 @@ function AppLayout() {
 				navigate({ to: `/settings/${section}` as "/settings/appearance" });
 			} else if (event.type === "open-workspace") {
 				navigate({ to: `/workspace/${event.data.workspaceId}` });
+			} else if (event.type === "clear-all-notifications") {
+				useTabsStore.getState().clearAllAttentionStatus();
 			}
 		},
 	});

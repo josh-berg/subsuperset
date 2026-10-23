@@ -9,7 +9,8 @@ import { publicProcedure, router } from "..";
 
 type MenuEvent =
 	| { type: "open-settings"; data: OpenSettingsEvent }
-	| { type: "open-workspace"; data: OpenWorkspaceEvent };
+	| { type: "open-workspace"; data: OpenWorkspaceEvent }
+	| { type: "clear-all-notifications" };
 
 export const createMenuRouter = () => {
 	return router({
@@ -23,12 +24,18 @@ export const createMenuRouter = () => {
 					emit.next({ type: "open-workspace", data: { workspaceId } });
 				};
 
+				const onClearAllNotifications = () => {
+					emit.next({ type: "clear-all-notifications" });
+				};
+
 				menuEmitter.on("open-settings", onOpenSettings);
 				menuEmitter.on("open-workspace", onOpenWorkspace);
+				menuEmitter.on("clear-all-notifications", onClearAllNotifications);
 
 				return () => {
 					menuEmitter.off("open-settings", onOpenSettings);
 					menuEmitter.off("open-workspace", onOpenWorkspace);
+					menuEmitter.off("clear-all-notifications", onClearAllNotifications);
 				};
 			});
 		}),

@@ -1327,6 +1327,22 @@ export const useTabsStore = create<TabsStore>()(
 					}
 				},
 
+				clearAllAttentionStatus: () => {
+					const state = get();
+					const newPanes = { ...state.panes };
+					let hasChanges = false;
+					for (const [paneId, pane] of Object.entries(state.panes)) {
+						const resolved = acknowledgedStatus(pane.status);
+						if (resolved !== (pane.status ?? "idle")) {
+							newPanes[paneId] = { ...pane, status: resolved };
+							hasChanges = true;
+						}
+					}
+					if (hasChanges) {
+						set({ panes: newPanes });
+					}
+				},
+
 				resetWorkspaceStatus: (workspaceId) => {
 					const state = get();
 					const workspaceTabs = state.tabs.filter(

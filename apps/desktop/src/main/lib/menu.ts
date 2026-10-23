@@ -48,6 +48,13 @@ export function createApplicationMenu() {
 				{ role: "minimize" },
 				{ role: "zoom" },
 				{ type: "separator" },
+				{
+					label: "Clear All Notifications",
+					click: () => {
+						menuEmitter.emit("clear-all-notifications");
+					},
+				},
+				{ type: "separator" },
 				{ role: "close", accelerator: closeAccelerator },
 			],
 		},
