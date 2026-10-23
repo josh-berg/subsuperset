@@ -6,9 +6,10 @@ import { CheckItemRow } from "./components/CheckItemRow";
 
 interface ChecksListProps {
 	checks: CheckItem[];
+	workspaceId: string;
 }
 
-export function ChecksList({ checks }: ChecksListProps) {
+export function ChecksList({ checks, workspaceId }: ChecksListProps) {
 	const [expanded, setExpanded] = useState(false);
 
 	// Filter out skipped/cancelled for display count, but show all when expanded
@@ -36,7 +37,11 @@ export function ChecksList({ checks }: ChecksListProps) {
 			{expanded && (
 				<div className="mt-1.5 space-y-1 pl-1">
 					{relevantChecks.map((check) => (
-						<CheckItemRow key={check.name} check={check} />
+						<CheckItemRow
+							key={check.name}
+							check={check}
+							workspaceId={workspaceId}
+						/>
 					))}
 				</div>
 			)}

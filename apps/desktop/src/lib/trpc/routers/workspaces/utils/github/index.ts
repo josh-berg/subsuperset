@@ -1,3 +1,4 @@
+export { fetchCheckJobLogs } from "./check-job-logs";
 export type { PullRequestCommentsTarget } from "./github";
 export {
 	clearGitHubCachesForWorktree,

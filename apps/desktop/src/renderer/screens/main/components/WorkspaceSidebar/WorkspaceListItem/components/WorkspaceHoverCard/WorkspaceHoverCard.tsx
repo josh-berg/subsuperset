@@ -154,7 +154,9 @@ export function WorkspaceHoverCardContent({
 							<div className="flex items-center gap-2 text-xs">
 								<ChecksSummary checks={pr.checks} status={pr.checksStatus} />
 							</div>
-							{pr.checks.length > 0 && <ChecksList checks={pr.checks} />}
+							{pr.checks.length > 0 && (
+								<ChecksList checks={pr.checks} workspaceId={workspaceId} />
+							)}
 						</div>
 					)}
 

@@ -38,6 +38,7 @@ const AUTO_FETCH_STALE_MS = 15 * 60 * 1000;
 
 import {
 	clearGitHubCachesForWorktree,
+	fetchCheckJobLogs,
 	fetchGitHubPRComments,
 	fetchGitHubPRStatus,
 	type PullRequestCommentsTarget,
@@ -444,6 +445,26 @@ export const createGitStatusProcedures = () => {
 						githubStatus: cachedGitHubStatus,
 					}),
 				});
+			}),
+
+		getCheckJobLogs: publicProcedure
+			.input(z.object({ workspaceId: z.string(), detailsUrl: z.string() }))
+			.query(async ({ input }) => {
+				const workspace = getWorkspace(input.workspaceId);
+				const worktree = workspace?.worktreeId
+					? getWorktree(workspace.worktreeId)
+					: null;
+				if (!worktree) {
+					throw new Error(
+						`Worktree for workspace ${input.workspaceId} not found`,
+					);
+				}
+				return {
+					logs: await fetchCheckJobLogs({
+						worktreePath: worktree.path,
+						detailsUrl: input.detailsUrl,
+					}),
+				};
 			}),
 
 		resolveReviewThread: publicProcedure
