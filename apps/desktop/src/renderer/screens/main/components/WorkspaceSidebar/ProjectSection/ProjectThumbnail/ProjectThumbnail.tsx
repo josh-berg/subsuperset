@@ -45,6 +45,13 @@ export function ProjectThumbnail({
 	const displayLetter = iconLetter?.trim()
 		? iconLetter.trim().toUpperCase().slice(0, 3)
 		: projectName.charAt(0).toUpperCase();
+	// Shrink the letters as the abbreviation grows so they always fit the box
+	const letterSizeClass =
+		displayLetter.length >= 3
+			? "text-[9px] tracking-tighter"
+			: displayLetter.length === 2
+				? "text-[11px] tracking-tight"
+				: "text-xs";
 	const hasCustomColor = isCustomColor(projectColor);
 	const shouldUseTransparentIconFrame = projectColor === PROJECT_COLOR_DEFAULT;
 
@@ -93,7 +100,8 @@ export function ProjectThumbnail({
 		<div
 			className={cn(
 				"size-6 rounded flex items-center justify-center flex-shrink-0",
-				"text-xs font-medium",
+				"font-medium",
+				letterSizeClass,
 				hasCustomColor ? undefined : "bg-muted text-muted-foreground",
 				borderClasses,
 				className,
