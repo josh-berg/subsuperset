@@ -1,6 +1,13 @@
-import { MultiFileDiff } from "@pierre/diffs/react";
+import { Virtualizer } from "@pierre/diffs";
+import { MultiFileDiff, VirtualizerContext } from "@pierre/diffs/react";
 import { cn } from "@superset/ui/utils";
-import type { CSSProperties } from "react";
+import {
+	type CSSProperties,
+	type RefObject,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
 import { electronTrpc } from "renderer/lib/electron-trpc";
 import {
 	getDiffsTheme,
@@ -8,12 +15,18 @@ import {
 } from "renderer/screens/main/components/WorkspaceView/utils/code-theme";
 import { useResolvedTheme } from "renderer/stores/theme";
 import type { DiffViewMode, FileContents } from "shared/changes-types";
+import { shouldVirtualizeDiff } from "./shouldVirtualizeDiff";
 
 interface LightDiffViewerProps {
 	contents: FileContents;
 	viewMode: DiffViewMode;
 	hideUnchangedRegions?: boolean;
 	filePath: string;
+	/**
+	 * The element that scrolls this diff. When provided and the diff is large,
+	 * only the lines near the viewport are rendered.
+	 */
+	scrollContainerRef?: RefObject<HTMLElement | null>;
 	className?: string;
 	style?: CSSProperties;
 }
@@ -23,9 +36,30 @@ export function LightDiffViewer({
 	viewMode,
 	hideUnchangedRegions,
 	filePath,
+	scrollContainerRef,
 	className,
 	style,
 }: LightDiffViewerProps) {
+	const virtualize =
+		scrollContainerRef !== undefined &&
+		shouldVirtualizeDiff(contents.original, contents.modified);
+	const contentRef = useRef<HTMLDivElement>(null);
+	const [virtualizer, setVirtualizer] = useState<Virtualizer>();
+
+	useEffect(() => {
+		const root = scrollContainerRef?.current;
+		if (!virtualize || !root) {
+			return;
+		}
+		const instance = new Virtualizer();
+		instance.setup(root, contentRef.current ?? undefined);
+		setVirtualizer(instance);
+		return () => {
+			instance.cleanUp();
+			setVirtualizer(undefined);
+		};
+	}, [virtualize, scrollContainerRef]);
+
 	const activeTheme = useResolvedTheme();
 	const { data: fontSettings } = electronTrpc.settings.getFontSettings.useQuery(
 		undefined,
@@ -47,7 +81,7 @@ export function LightDiffViewer({
 			: undefined,
 	});
 
-	return (
+	const diff = (
 		<MultiFileDiff
 			oldFile={{ name: filePath, contents: contents.original }}
 			newFile={{ name: filePath, contents: contents.modified }}
@@ -71,5 +105,21 @@ export function LightDiffViewer({
 				`,
 			}}
 		/>
+	);
+
+	if (!virtualize) {
+		return diff;
+	}
+
+	// MultiFileDiff picks its (virtualized or plain) renderer when it mounts,
+	// so wait for the virtualizer instead of switching renderers mid-life.
+	return (
+		<div ref={contentRef}>
+			{virtualizer && (
+				<VirtualizerContext.Provider value={virtualizer}>
+					{diff}
+				</VirtualizerContext.Provider>
+			)}
+		</div>
 	);
 }

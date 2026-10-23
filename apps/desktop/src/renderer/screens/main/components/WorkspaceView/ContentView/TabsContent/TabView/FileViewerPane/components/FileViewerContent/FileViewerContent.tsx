@@ -366,6 +366,7 @@ export function FileViewerContent({
 							viewMode={diffViewMode}
 							hideUnchangedRegions={hideUnchangedRegions}
 							filePath={filePath}
+							scrollContainerRef={diffContainerRef}
 							className="min-h-full"
 						/>
 					</div>
