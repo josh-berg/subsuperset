@@ -39,6 +39,15 @@ function escapeGlobMagic(input: string): string {
 // known worktree conventions if the scan truncates.
 const NESTED_REPO_SCAN_DEADLINE_MS = 3_000;
 
+// FSEvents overflow rescan pacing. Reacting to every overflow cancels search
+// index rebuilds and refetches consumers repeatedly under sustained churn.
+// Coalesce per root into one trailing rescan, double the window while
+// overflows keep arriving, and reset after a quiet period. A hard deadline
+// guarantees a rescan at least every OVERFLOW_RESCAN_MAX_MS.
+const OVERFLOW_RESCAN_INITIAL_MS = 5_000;
+const OVERFLOW_RESCAN_MAX_MS = 60_000;
+const OVERFLOW_BACKOFF_RESET_MS = 120_000;
+
 type WatchListener = (batch: { events: FsWatchEvent[] }) => void;
 
 interface WatcherState {
@@ -48,6 +57,10 @@ interface WatcherState {
 	pathTypes: Map<string, boolean>;
 	pendingEvents: ParcelWatcherEvent[];
 	flushTimer: ReturnType<typeof setTimeout> | null;
+	overflowRescanTimer: ReturnType<typeof setTimeout> | null;
+	overflowRescanDeadline: number;
+	overflowRescanDelayMs: number;
+	lastOverflowAt: number;
 }
 
 function coalesceWatchEvent(
@@ -315,14 +328,27 @@ function internalToSearchPatchEvent(
 export interface FsWatcherManagerOptions {
 	debounceMs?: number;
 	ignore?: string[];
+	/** Overflow rescan pacing. Test-only overrides. */
+	overflowRescanInitialMs?: number;
+	overflowRescanMaxMs?: number;
+	overflowBackoffResetMs?: number;
 }
 
 export class FsWatcherManager {
 	private readonly debounceMs: number;
 	private readonly ignore: string[];
+	private readonly overflowRescanInitialMs: number;
+	private readonly overflowRescanMaxMs: number;
+	private readonly overflowBackoffResetMs: number;
 	private readonly watchers = new Map<string, WatcherState>();
 
 	constructor(options: FsWatcherManagerOptions = {}) {
+		this.overflowRescanInitialMs =
+			options.overflowRescanInitialMs ?? OVERFLOW_RESCAN_INITIAL_MS;
+		this.overflowRescanMaxMs =
+			options.overflowRescanMaxMs ?? OVERFLOW_RESCAN_MAX_MS;
+		this.overflowBackoffResetMs =
+			options.overflowBackoffResetMs ?? OVERFLOW_BACKOFF_RESET_MS;
 		this.debounceMs = options.debounceMs ?? 75;
 		this.ignore = options.ignore ?? DEFAULT_IGNORE_PATTERNS;
 	}
@@ -357,6 +383,7 @@ export class FsWatcherManager {
 				currentState.flushTimer = null;
 			}
 
+			this.clearOverflowRescan(currentState);
 			await currentState.subscription.unsubscribe();
 			this.watchers.delete(absolutePath);
 		};
@@ -369,6 +396,7 @@ export class FsWatcherManager {
 					clearTimeout(state.flushTimer);
 					state.flushTimer = null;
 				}
+				this.clearOverflowRescan(state);
 				await state.subscription.unsubscribe();
 			}),
 		);
@@ -383,6 +411,10 @@ export class FsWatcherManager {
 			pathTypes: new Map<string, boolean>(),
 			pendingEvents: [],
 			flushTimer: null,
+			overflowRescanTimer: null,
+			overflowRescanDeadline: 0,
+			overflowRescanDelayMs: this.overflowRescanInitialMs,
+			lastOverflowAt: 0,
 		};
 
 		try {
@@ -418,10 +450,7 @@ export class FsWatcherManager {
 						absolutePath: state.absolutePath,
 						error: toErrorMessage(error),
 					});
-					this.emit(state, {
-						events: [{ kind: "overflow", absolutePath: state.absolutePath }],
-					});
-					invalidateSearchIndexesForRoot(state.absolutePath);
+					this.scheduleOverflowRescan(state);
 					return;
 				}
 
@@ -477,6 +506,75 @@ export class FsWatcherManager {
 				error: toErrorMessage(error),
 			});
 			return [];
+		}
+	}
+
+	private clearOverflowRescan(state: WatcherState): void {
+		if (state.overflowRescanTimer) {
+			clearTimeout(state.overflowRescanTimer);
+			state.overflowRescanTimer = null;
+		}
+	}
+
+	/**
+	 * The rescan trails the last overflow of a storm: overflows only stamp
+	 * `lastOverflowAt`, and the armed timer re-checks at fire time, pushing
+	 * itself out if an overflow landed inside its window.
+	 */
+	private scheduleOverflowRescan(state: WatcherState): void {
+		const now = Date.now();
+		if (now - state.lastOverflowAt >= this.overflowBackoffResetMs) {
+			state.overflowRescanDelayMs = this.overflowRescanInitialMs;
+		}
+		state.lastOverflowAt = now;
+		if (state.overflowRescanTimer) {
+			return;
+		}
+		state.overflowRescanDeadline = now + this.overflowRescanMaxMs;
+		this.armOverflowRescan(state, now + state.overflowRescanDelayMs);
+	}
+
+	private armOverflowRescan(state: WatcherState, fireAt: number): void {
+		const delayMs = Math.max(
+			0,
+			Math.min(fireAt, state.overflowRescanDeadline) - Date.now(),
+		);
+		const timer = setTimeout(() => {
+			state.overflowRescanTimer = null;
+			this.performOverflowRescan(state);
+		}, delayMs);
+		timer.unref?.();
+		state.overflowRescanTimer = timer;
+	}
+
+	private performOverflowRescan(state: WatcherState): void {
+		if (this.watchers.get(state.absolutePath) !== state) {
+			return;
+		}
+		const now = Date.now();
+		const windowMs = state.overflowRescanDelayMs;
+		const trailingFireAt = state.lastOverflowAt + windowMs;
+		if (now < trailingFireAt && now < state.overflowRescanDeadline) {
+			this.armOverflowRescan(state, trailingFireAt);
+			return;
+		}
+		state.overflowRescanDelayMs = Math.min(
+			windowMs * 2,
+			this.overflowRescanMaxMs,
+		);
+		console.error("[workspace-fs/watch] FSEvents overflow rescan:", {
+			absolutePath: state.absolutePath,
+		});
+		// Dropped events mean the patch-maintained index can't be trusted.
+		invalidateSearchIndexesForRoot(state.absolutePath);
+		this.emit(state, {
+			events: [{ kind: "overflow", absolutePath: state.absolutePath }],
+		});
+		// A deadline-forced fire mid-storm hasn't seen the fs settle; keep the
+		// trailing guarantee with a follow-up batch.
+		if (now - state.lastOverflowAt < windowMs) {
+			state.overflowRescanDeadline = now + this.overflowRescanMaxMs;
+			this.armOverflowRescan(state, now + state.overflowRescanDelayMs);
 		}
 	}
 
