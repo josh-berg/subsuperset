@@ -17,6 +17,7 @@ import { useSettingsStore } from "renderer/stores/settings-state";
 import { useTabsStore } from "renderer/stores/tabs/store";
 import { useAgentHookListener } from "renderer/stores/tabs/useAgentHookListener";
 import { useClaudeRunningListener } from "renderer/stores/tabs/useClaudeRunningListener";
+import { useDockBadge } from "renderer/stores/tabs/useDockBadge";
 import { setPaneWorkspaceRunState } from "renderer/stores/tabs/workspace-run";
 import { useWorkspaceInitStore } from "renderer/stores/workspace-init";
 import { NOTIFICATION_EVENTS } from "shared/constants";
@@ -37,6 +38,7 @@ function AppLayout() {
 	const shownWorkspaceInitWarningsRef = useRef(new Set<string>());
 
 	useAgentHookListener();
+	useDockBadge();
 	useClaudeRunningListener();
 
 	// One-time migration from old hotkey storage to new localStorage-based store

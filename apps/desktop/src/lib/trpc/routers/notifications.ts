@@ -1,10 +1,12 @@
 import { observable } from "@trpc/server/observable";
+import { setBadgeCount } from "main/lib/dock-icon";
 import {
 	type AgentLifecycleEvent,
 	type NotificationIds,
 	notificationsEmitter,
 } from "main/lib/notifications/server";
 import { NOTIFICATION_EVENTS } from "shared/constants";
+import { z } from "zod";
 import { publicProcedure, router } from "..";
 
 type TerminalExitNotification = NotificationIds & {
@@ -26,6 +28,13 @@ type NotificationEvent =
 
 export const createNotificationsRouter = () => {
 	return router({
+		setDockBadge: publicProcedure
+			.input(z.object({ count: z.number().int().min(0) }))
+			.mutation(({ input }) => {
+				setBadgeCount(input.count);
+				return { success: true as const };
+			}),
+
 		subscribe: publicProcedure.subscription(() => {
 			return observable<NotificationEvent>((emit) => {
 				const onLifecycle = (data: AgentLifecycleEvent) => {
