@@ -12,6 +12,8 @@ let nextHighlightInstanceId = 0;
 export interface UseTextSearchOptions {
 	containerRef: RefObject<HTMLDivElement | null>;
 	highlightPrefix: string;
+	/** Keep the search state (open, query) but skip the DOM search. */
+	domSearchDisabled?: boolean;
 	getSearchRoots?: (container: HTMLDivElement) => Array<Node & ParentNode>;
 }
 
@@ -40,6 +42,7 @@ function supportsCustomHighlights(): boolean {
 export function useTextSearch({
 	containerRef,
 	highlightPrefix,
+	domSearchDisabled = false,
 	getSearchRoots,
 }: UseTextSearchOptions): UseTextSearchReturn {
 	const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -155,7 +158,7 @@ export function useTextSearch({
 			clearHighlights();
 
 			const searchRoots = getResolvedSearchRoots();
-			if (searchRoots.length === 0 || !searchQuery) {
+			if (domSearchDisabled || searchRoots.length === 0 || !searchQuery) {
 				setMatchCount(0);
 				setActiveMatchIndex(0);
 				return;
@@ -190,6 +193,7 @@ export function useTextSearch({
 		},
 		[
 			clearHighlights,
+			domSearchDisabled,
 			ensureHighlightStyles,
 			getResolvedSearchRoots,
 			highlightKeys.active,

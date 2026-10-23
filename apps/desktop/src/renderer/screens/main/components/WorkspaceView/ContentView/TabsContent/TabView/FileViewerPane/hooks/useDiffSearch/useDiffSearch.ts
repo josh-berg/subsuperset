@@ -3,12 +3,17 @@ import { useCallback, useEffect } from "react";
 import { useHotkey } from "renderer/hotkeys";
 import { useTextSearch } from "renderer/screens/main/components/WorkspaceView/ContentView/TabsContent/TabView/hooks";
 import { getDiffSearchRoots } from "../../utils/diffRendererRoots";
+import { useVirtualizedDiffSearch } from "../useVirtualizedDiffSearch";
 
 interface UseDiffSearchOptions {
 	containerRef: RefObject<HTMLDivElement | null>;
 	isFocused: boolean;
 	isDiffMode: boolean;
 	filePath: string;
+	/** The diff is virtualized, so its DOM only holds the lines near the viewport. */
+	isVirtualized?: boolean;
+	/** New-file text searched while virtualized. */
+	virtualizedText?: string;
 }
 
 interface UseDiffSearchReturn {
@@ -29,6 +34,8 @@ export function useDiffSearch({
 	isFocused,
 	isDiffMode,
 	filePath,
+	isVirtualized = false,
+	virtualizedText,
 }: UseDiffSearchOptions): UseDiffSearchReturn {
 	const getSearchRoots = useCallback(
 		(container: HTMLDivElement) => getDiffSearchRoots(container),
@@ -39,7 +46,18 @@ export function useDiffSearch({
 		containerRef,
 		getSearchRoots,
 		highlightPrefix: "diff-search",
+		domSearchDisabled: isVirtualized,
 	});
+
+	const virtualSearch = useVirtualizedDiffSearch({
+		containerRef,
+		enabled: isVirtualized,
+		isSearchOpen: textSearch.isSearchOpen,
+		query: textSearch.query,
+		caseSensitive: textSearch.caseSensitive,
+		text: virtualizedText,
+	});
+	const activeSearch = isVirtualized ? virtualSearch : textSearch;
 
 	useEffect(() => {
 		if (!isFocused || !isDiffMode) {
@@ -72,12 +90,12 @@ export function useDiffSearch({
 		isSearchOpen: textSearch.isSearchOpen,
 		query: textSearch.query,
 		caseSensitive: textSearch.caseSensitive,
-		matchCount: textSearch.matchCount,
-		activeMatchIndex: textSearch.activeMatchIndex,
+		matchCount: activeSearch.matchCount,
+		activeMatchIndex: activeSearch.activeMatchIndex,
 		setQuery: textSearch.setQuery,
 		setCaseSensitive: textSearch.setCaseSensitive,
-		findNext: textSearch.findNext,
-		findPrevious: textSearch.findPrevious,
+		findNext: activeSearch.findNext,
+		findPrevious: activeSearch.findPrevious,
 		closeSearch: textSearch.closeSearch,
 	};
 }

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MosaicBranch } from "react-mosaic-component";
 import type { MarkdownEditorAdapter } from "renderer/components/MarkdownRenderer";
 import { electronTrpc } from "renderer/lib/electron-trpc";
+import { shouldVirtualizeDiff } from "renderer/screens/main/components/WorkspaceView/ChangesContent/components/LightDiffViewer/shouldVirtualizeDiff";
 import { FileSaveConflictDialog } from "renderer/screens/main/components/WorkspaceView/components/FileSaveConflictDialog";
 import { useWorkspaceFileEvents } from "renderer/screens/main/components/WorkspaceView/hooks/useWorkspaceFileEvents";
 import { useChangesStore } from "renderer/stores/changes";
@@ -186,13 +187,6 @@ export function FileViewerPane({
 		filePath,
 	});
 
-	const diffSearch = useDiffSearch({
-		containerRef: diffContainerRef,
-		isFocused,
-		isDiffMode: viewMode === "diff",
-		filePath,
-	});
-
 	const getCurrentContent = useCallback(() => {
 		if (hasEditorDocumentInitialized(documentKey)) {
 			return getEditorDocumentCurrentContent(documentKey);
@@ -222,6 +216,16 @@ export function FileViewerPane({
 		diffCategory,
 		commitHash,
 		oldPath,
+	});
+
+	const diffSearch = useDiffSearch({
+		containerRef: diffContainerRef,
+		isFocused,
+		isDiffMode: viewMode === "diff",
+		filePath,
+		isVirtualized:
+			!!diffData && shouldVirtualizeDiff(diffData.original, diffData.modified),
+		virtualizedText: diffData?.modified,
 	});
 
 	useEffect(() => {
