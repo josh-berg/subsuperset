@@ -428,12 +428,27 @@ export const Terminal = ({ paneId, tabId, workspaceId }: TerminalProps) => {
 	const handleDrop = (event: React.DragEvent) => {
 		event.preventDefault();
 		const files = Array.from(event.dataTransfer.files);
+		// Drags that aren't backed by a real file (e.g. the macOS screenshot
+		// thumbnail) yield an empty path from getPathForFile; fall back to any
+		// file:// URLs the source put on the drag.
+		const filePaths = files
+			.map((file) => window.webUtils.getPathForFile(file))
+			.filter(Boolean);
+		if (filePaths.length === 0) {
+			for (const line of event.dataTransfer
+				.getData("text/uri-list")
+				.split(/\r?\n/)) {
+				if (!line.startsWith("file://")) continue;
+				try {
+					filePaths.push(decodeURIComponent(new URL(line).pathname));
+				} catch {}
+			}
+		}
 		let text: string;
 		let isNativeFileDrop = false;
-		if (files.length > 0) {
+		if (filePaths.length > 0) {
 			// Native file drop (from Finder, etc.)
-			const paths = files.map((file) => window.webUtils.getPathForFile(file));
-			text = shellEscapePaths(paths);
+			text = shellEscapePaths(filePaths);
 			isNativeFileDrop = true;
 		} else {
 			// Internal drag (from file tree) - path is in text/plain
