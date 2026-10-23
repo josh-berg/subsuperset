@@ -39,6 +39,8 @@ export const TERMINAL_OPTIONS: ITerminalOptions = {
 	scrollback: DEFAULT_TERMINAL_SCROLLBACK,
 	// Allow Option+key to type special characters on international keyboards (e.g., Option+2 = @)
 	macOptionIsMeta: false,
+	// Option-drag selects text even when a TUI has captured the mouse
+	macOptionClickForcesSelection: true,
 	cursorStyle: "block",
 	cursorInactiveStyle: "outline",
 	screenReaderMode: false,
