@@ -27,6 +27,7 @@ import { getHostServiceManager } from "./lib/host-service-manager";
 import { localDb } from "./lib/local-db";
 import { ensureProjectIconsDir, getProjectIconPath } from "./lib/project-icons";
 import { initSentry } from "./lib/sentry";
+import { sweepOrphanedWorktreeDeletes } from "./lib/sweep-orphaned-worktree-deletes";
 import {
 	prewarmTerminalRuntime,
 	reconcileDaemonSessions,
@@ -387,6 +388,7 @@ if (!gotTheLock) {
 
 		// Must happen before renderer restore runs
 		await reconcileDaemonSessions();
+		void sweepOrphanedWorktreeDeletes();
 		prewarmTerminalRuntime();
 
 		try {

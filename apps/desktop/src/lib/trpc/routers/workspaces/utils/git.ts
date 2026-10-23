@@ -15,6 +15,7 @@ import { isUpstreamMissingError } from "../../changes/git-utils";
 import { runWithPostCheckoutHookTolerance } from "../../utils/git-hook-tolerance";
 import { execGitWithShellPath, getSimpleGitWithShellPath } from "./git-client";
 import { execWithShellEnv, getProcessEnvWithShellPath } from "./shell-env";
+import { DELETE_TEMP_PREFIX } from "./sweep-orphaned-deletes";
 import { resolveTrackingRemoteName } from "./upstream-ref";
 
 const execFileAsync = promisify(execFile);
@@ -749,7 +750,7 @@ export async function removeWorktree(
 		// then `git worktree prune` to clean metadata, then delete in background.
 		const tempPath = join(
 			dirname(worktreePath),
-			`.superset-delete-${randomUUID()}`,
+			`${DELETE_TEMP_PREFIX}${randomUUID()}`,
 		);
 		await rename(worktreePath, tempPath);
 
