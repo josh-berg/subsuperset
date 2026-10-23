@@ -3,6 +3,7 @@ import { spawn } from "node:child_process";
 import {
 	collectProcessTree,
 	getProcessGroupId,
+	hasDescendantProcess,
 	parseProcessTable,
 	signalProcessTreeAndGroups,
 } from "./process-tree";
@@ -60,5 +61,21 @@ describe("signalProcessTreeAndGroups", () => {
 		expect(
 			targets.some((t) => t.target === "pid" && t.id === process.pid),
 		).toBe(false);
+	});
+});
+
+describe("hasDescendantProcess", () => {
+	const table = [
+		{ pid: 10, ppid: 1, pgid: 10 },
+		{ pid: 11, ppid: 10, pgid: 11 },
+		{ pid: 20, ppid: 1, pgid: 20 },
+	];
+
+	test("true when the root has a child", () => {
+		expect(hasDescendantProcess(10, table)).toBe(true);
+	});
+
+	test("false for an idle shell", () => {
+		expect(hasDescendantProcess(20, table)).toBe(false);
 	});
 });

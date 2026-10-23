@@ -107,6 +107,10 @@ class LocalTerminalRuntime implements TerminalRuntime {
 		return this.backend.killByWorkspaceId(workspaceId);
 	};
 
+	hasRunningProcess: TerminalRuntime["hasRunningProcess"] = (paneIds) => {
+		return this.backend.hasRunningProcess(paneIds);
+	};
+
 	getSessionCountByWorkspaceId: TerminalRuntime["getSessionCountByWorkspaceId"] =
 		(workspaceId) => {
 			return this.backend.getSessionCountByWorkspaceId(workspaceId);

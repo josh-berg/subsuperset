@@ -3,6 +3,7 @@ import { workspaces } from "@superset/local-db";
 import { track } from "main/lib/analytics";
 import { appState } from "main/lib/app-state";
 import { localDb } from "main/lib/local-db";
+import { hasDescendantProcess, readProcessTable } from "main/lib/process-tree";
 import { HistoryReader, truncateUtf8ToLastBytes } from "../../terminal-history";
 import {
 	disposeTerminalHostClient,
@@ -854,6 +855,26 @@ export class DaemonTerminalManager extends EventEmitter {
 			cwd: session.cwd,
 			lastActive: session.lastActive,
 		};
+	}
+
+	/**
+	 * True when any of the panes' shells has a running child process. Errors
+	 * report "not running" so a failed probe never blocks a close.
+	 */
+	async hasRunningProcess(paneIds: string[]): Promise<boolean> {
+		try {
+			const wanted = new Set(paneIds);
+			const response = await this.listExistingDaemonSessions();
+			const pids = response.sessions
+				.filter((s) => s.isAlive && s.pid !== null && wanted.has(s.paneId))
+				.map((s) => s.pid as number);
+			if (pids.length === 0) return false;
+			const table = readProcessTable();
+			return pids.some((pid) => hasDescendantProcess(pid, table));
+		} catch (error) {
+			console.warn("[DaemonTerminalManager] hasRunningProcess failed:", error);
+			return false;
+		}
 	}
 
 	async killByWorkspaceId(

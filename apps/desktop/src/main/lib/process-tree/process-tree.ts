@@ -190,3 +190,11 @@ export function getProcessGroupId(
 export function isPositiveInteger(value: unknown): value is number {
 	return typeof value === "number" && Number.isInteger(value) && value > 0;
 }
+
+/** True when `rootPid` has at least one live descendant (e.g. a shell running a command). */
+export function hasDescendantProcess(
+	rootPid: number,
+	table: ProcessInfo[],
+): boolean {
+	return collectProcessTree(rootPid, table).size > 1;
+}

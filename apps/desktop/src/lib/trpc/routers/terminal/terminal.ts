@@ -436,6 +436,12 @@ export const createTerminalRouter = () => {
 			return restartDaemonShared();
 		}),
 
+		hasRunningProcess: publicProcedure
+			.input(z.object({ paneIds: z.array(z.string()) }))
+			.query(async ({ input }) => {
+				return terminal.hasRunningProcess(input.paneIds);
+			}),
+
 		getSession: publicProcedure
 			.input(z.string())
 			.query(async ({ input: paneId }) => {

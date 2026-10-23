@@ -1,4 +1,5 @@
 import { invalidateFileSaveQueries } from "renderer/lib/invalidate-file-save-queries";
+import { confirmCloseTerminals } from "renderer/lib/terminal/confirm-close-terminals";
 import { electronTrpcClient } from "renderer/lib/trpc-client";
 import { useTabsStore } from "renderer/stores/tabs/store";
 import type { AddFileViewerPaneOptions } from "renderer/stores/tabs/types";
@@ -544,6 +545,18 @@ export function requestPaneClose(paneId: string): boolean {
 		return true;
 	}
 
+	if (pane.type === "terminal") {
+		void confirmCloseTerminals([paneId], {
+			title: "Close terminal?",
+			description:
+				"A process is still running in this terminal. Closing it will stop the process.",
+			confirmLabel: "Close terminal",
+		}).then((ok) => {
+			if (ok) useTabsStore.getState().removePane(paneId);
+		});
+		return false;
+	}
+
 	if (pane.type !== "file-viewer") {
 		useTabsStore.getState().removePane(paneId);
 		return true;
@@ -602,8 +615,22 @@ export function requestTabClose(tabId: string): boolean {
 
 	const dirtyDocs = collectDirtyTabDocuments(tabId);
 	if (dirtyDocs.length === 0) {
-		useTabsStore.getState().removeTab(tabId);
-		return true;
+		const terminalPaneIds = Object.values(useTabsStore.getState().panes)
+			.filter((pane) => pane.tabId === tabId && pane.type === "terminal")
+			.map((pane) => pane.id);
+		if (terminalPaneIds.length === 0) {
+			useTabsStore.getState().removeTab(tabId);
+			return true;
+		}
+		void confirmCloseTerminals(terminalPaneIds, {
+			title: "Close tab?",
+			description:
+				"A process is still running in this tab. Closing it will stop the process.",
+			confirmLabel: "Close tab",
+		}).then((ok) => {
+			if (ok) useTabsStore.getState().removeTab(tabId);
+		});
+		return false;
 	}
 
 	useEditorSessionsStore.getState().setPendingTabClose({

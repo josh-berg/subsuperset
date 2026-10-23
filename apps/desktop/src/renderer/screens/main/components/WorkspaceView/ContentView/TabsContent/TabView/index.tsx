@@ -275,7 +275,7 @@ export function TabView({ tab }: TabViewProps) {
 					splitPaneAuto={splitPaneAuto}
 					splitPaneHorizontal={splitPaneHorizontal}
 					splitPaneVertical={splitPaneVertical}
-					removePane={removePane}
+					removePane={requestPaneClose}
 					setFocusedPane={setFocusedPane}
 					availableTabs={workspaceTabs}
 					onMoveToTab={(targetTabId) => movePaneToTab(paneId, targetTabId)}

@@ -122,6 +122,9 @@ export interface TerminalWorkspaceOperations {
 		workspaceId: string,
 	): Promise<{ killed: number; failed: number }>;
 
+	/** True when any of the given panes' shells has a running child process */
+	hasRunningProcess(paneIds: string[]): Promise<boolean>;
+
 	/** Get count of alive sessions for a workspace */
 	getSessionCountByWorkspaceId(workspaceId: string): Promise<number>;
 
