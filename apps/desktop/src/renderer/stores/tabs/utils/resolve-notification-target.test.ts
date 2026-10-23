@@ -9,17 +9,6 @@ describe("resolveNotificationTarget", () => {
 		name: "Terminal",
 	});
 
-	const createChatPane = (id: string, tabId: string, sessionId: string) => ({
-		id,
-		tabId,
-		type: "chat" as const,
-		name: "Chat",
-		chat: {
-			sessionId,
-			launchConfig: null,
-		},
-	});
-
 	const createTab = (id: string, workspaceId: string) => ({
 		id,
 		name: "Tab",
@@ -139,29 +128,7 @@ describe("resolveNotificationTarget", () => {
 		});
 	});
 
-	describe("with only sessionId", () => {
-		it("resolves pane, tab, and workspace from the chat session", () => {
-			const state = {
-				panes: {
-					"pane-1": createChatPane("pane-1", "tab-1", "session-1"),
-				},
-				tabs: [createTab("tab-1", "ws-1")],
-			};
-
-			const result = resolveNotificationTarget(
-				{ sessionId: "session-1" },
-				state,
-			);
-
-			expect(result).toEqual({
-				paneId: "pane-1",
-				tabId: "tab-1",
-				workspaceId: "ws-1",
-			});
-		});
-	});
-
-	describe("with stale paneId and no session match", () => {
+	describe("with stale paneId", () => {
 		it("drops the invalid paneId instead of returning it", () => {
 			const state = {
 				panes: {},

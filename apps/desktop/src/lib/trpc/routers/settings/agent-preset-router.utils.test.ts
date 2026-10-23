@@ -45,36 +45,12 @@ describe("normalizeAgentPresetPatch", () => {
 		});
 	});
 
-	test("normalizes empty chat model to null", () => {
-		const patch = normalizeAgentPresetPatch({
-			definition: getBuiltinAgentDefinition("superset-chat"),
-			patch: {
-				model: "   ",
-			},
-		});
-
-		expect(patch).toEqual({
-			model: null,
-		});
-	});
-
 	test("rejects unknown task template variables", () => {
 		expect(() =>
 			normalizeAgentPresetPatch({
-				definition: getBuiltinAgentDefinition("superset-chat"),
+				definition: getBuiltinAgentDefinition("claude"),
 				patch: {
 					taskPromptTemplate: "Hello {{unknown}}",
-				},
-			}),
-		).toThrow(TRPCError);
-	});
-
-	test("rejects patches that do not apply to the agent kind", () => {
-		expect(() =>
-			normalizeAgentPresetPatch({
-				definition: getBuiltinAgentDefinition("superset-chat"),
-				patch: {
-					command: "codex",
 				},
 			}),
 		).toThrow(TRPCError);

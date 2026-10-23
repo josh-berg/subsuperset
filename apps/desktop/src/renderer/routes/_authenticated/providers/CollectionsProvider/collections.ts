@@ -4,7 +4,6 @@ import type {
 } from "@tanstack/react-db";
 import {
 	createCollection,
-	localOnlyCollectionOptions,
 	localStorageCollectionOptions,
 } from "@tanstack/react-db";
 import type { z } from "zod";
@@ -17,16 +16,7 @@ import {
 	workspaceLocalStateSchema,
 } from "./dashboardSidebarLocal";
 
-export interface ChatSession {
-	id: string;
-	title: string | null;
-	workspaceId: string | null;
-	lastActiveAt: Date | string | null;
-	createdAt: Date | string;
-}
-
 export interface OrgCollections {
-	chatSessions: Collection<ChatSession>;
 	v2SidebarProjects: Collection<
 		DashboardSidebarProjectRow,
 		string,
@@ -54,13 +44,6 @@ export interface OrgCollections {
 const collectionsCache = new Map<string, OrgCollections>();
 
 function createOrgCollections(organizationId: string): OrgCollections {
-	const chatSessions = createCollection(
-		localOnlyCollectionOptions<ChatSession>({
-			id: `chat_sessions-${organizationId}`,
-			getKey: (item) => item.id,
-		}),
-	);
-
 	const v2SidebarProjects = createCollection(
 		localStorageCollectionOptions({
 			id: `v2_sidebar_projects-${organizationId}`,
@@ -89,7 +72,6 @@ function createOrgCollections(organizationId: string): OrgCollections {
 	);
 
 	return {
-		chatSessions,
 		v2SidebarProjects,
 		v2WorkspaceLocalState,
 		v2SidebarSections,

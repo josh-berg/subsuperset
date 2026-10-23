@@ -4,7 +4,6 @@ import type {
 	BaseTab,
 	BaseTabsState,
 	BrowserLoadError,
-	ChatLaunchConfig,
 	FileViewerMode,
 	Pane,
 	PaneStatus,
@@ -50,11 +49,7 @@ export interface AddTabOptions {
 
 export interface SplitPaneOptions {
 	initialCwd?: string;
-	paneType?: "terminal" | "chat" | "webview";
-}
-
-export interface AddChatTabOptions {
-	launchConfig?: ChatLaunchConfig | null;
+	paneType?: "terminal" | "webview";
 }
 
 export interface AddTabWithMultiplePanesOptions {
@@ -101,10 +96,6 @@ export interface TabsStore extends TabsState {
 		workspaceId: string,
 		options?: AddTabOptions,
 	) => { tabId: string; paneId: string };
-	addChatTab: (
-		workspaceId: string,
-		options?: AddChatTabOptions,
-	) => { tabId: string; paneId: string };
 	addTabWithMultiplePanes: (
 		workspaceId: string,
 		options: AddTabWithMultiplePanesOptions,
@@ -123,7 +114,6 @@ export interface TabsStore extends TabsState {
 
 	// Pane operations
 	addPane: (tabId: string, options?: AddTabOptions) => string;
-	addChatPane: (tabId: string, options?: AddChatTabOptions) => string;
 	addPanesToTab: (
 		tabId: string,
 		options: AddTabWithMultiplePanesOptions,
@@ -227,14 +217,6 @@ export interface TabsStore extends TabsState {
 	// Reopen operations
 	/** Reopen the last closed tab for a workspace. Returns true if a tab was reopened. */
 	reopenClosedTab: (workspaceId: string) => boolean;
-
-	// Chat operations
-	/** Switch a chat pane to a different session */
-	switchChatSession: (paneId: string, sessionId: string | null) => void;
-	setChatLaunchConfig: (
-		paneId: string,
-		launchConfig: AddChatTabOptions["launchConfig"],
-	) => void;
 
 	// Query helpers
 	getTabsByWorkspace: (workspaceId: string) => Tab[];

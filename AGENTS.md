@@ -8,7 +8,6 @@ Bun + Turbo monorepo with:
 - **Apps**:
   - `apps/desktop` - Electron desktop application
 - **Packages**:
-  - `packages/chat` - Chat UI components (slash command discovery via `.claude/commands`)
   - `packages/desktop-mcp` - Desktop MCP server
   - `packages/host-service` - Host service (process management layer)
   - `packages/local-db` - Local SQLite database (Drizzle ORM)
@@ -63,10 +62,9 @@ bun run clean:workspaces   # Clean all workspace node_modules
 ## Agent Rules
 1. **Type safety** - avoid `any` unless necessary
 2. **Prefer `gh` CLI** - when performing git operations (PRs, issues, checkout, etc.), prefer the GitHub CLI (`gh`) over raw `git` commands where possible
-3. **Shared command source** - keep command definitions in `.agents/commands/` only. `.claude/commands` should be a symlink to `../.agents/commands`. (`packages/chat` discovers slash commands from `.claude/commands`.)
+3. **Shared command source** - keep command definitions in `.agents/commands/` only. `.claude/commands` should be a symlink to `../.agents/commands`.
 4. **Workspace MCP config** - keep shared MCP servers in `.mcp.json`.
-5. **Mastra dependencies** - use the published upstream `mastracode` and `@mastra/*` packages. Do not add fork tarball overrides or custom patch steps unless explicitly requested.
-6. **Package age security policy** - global `npm`, `bun`, `pnpm`, and `uv` configs enforce a 7-day minimum release age, and `npm` also has `ignore-scripts=true`. If package install/update/add commands fail because a version is too new or a lifecycle script is blocked, do not keep retrying, disable the policy, or suggest bypass flags. Choose an older version that satisfies the policy, or stop and surface the blocked dependency clearly.
+5. **Package age security policy** - global `npm`, `bun`, `pnpm`, and `uv` configs enforce a 7-day minimum release age, and `npm` also has `ignore-scripts=true`. If package install/update/add commands fail because a version is too new or a lifecycle script is blocked, do not keep retrying, disable the policy, or suggest bypass flags. Choose an older version that satisfies the policy, or stop and surface the blocked dependency clearly.
 
 
 ---

@@ -78,18 +78,16 @@ export function SessionsPanel() {
 		for (const tab of tabs) {
 			if (!workspaceMap.has(tab.workspaceId)) continue;
 			const tabPanes = panesByTab.get(tab.id) ?? [];
-			const hasChat = tabPanes.some((p) => p.type === "chat");
 			const hasClaudeTerminal = tabPanes.some(
 				(p) => p.type === "terminal" && p.runningClaude,
 			);
 			const hasTerminal = tabPanes.some((p) => p.type === "terminal");
 
-			const kind: "claude" | "terminal" | null =
-				hasChat || hasClaudeTerminal
-					? "claude"
-					: hasTerminal
-						? "terminal"
-						: null;
+			const kind: "claude" | "terminal" | null = hasClaudeTerminal
+				? "claude"
+				: hasTerminal
+					? "terminal"
+					: null;
 
 			if (!kind) continue;
 

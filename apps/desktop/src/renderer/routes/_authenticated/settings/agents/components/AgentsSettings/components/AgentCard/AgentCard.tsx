@@ -83,26 +83,6 @@ export function AgentCard({
 		currentPreset: ResolvedAgentConfig,
 		patch: AgentPresetPatch,
 	): ResolvedAgentConfig => {
-		if (currentPreset.kind === "terminal") {
-			return {
-				...currentPreset,
-				enabled: patch.enabled ?? currentPreset.enabled,
-				label: patch.label ?? currentPreset.label,
-				description:
-					patch.description !== undefined
-						? (patch.description ?? undefined)
-						: currentPreset.description,
-				command: patch.command ?? currentPreset.command,
-				promptCommand: patch.promptCommand ?? currentPreset.promptCommand,
-				promptCommandSuffix:
-					patch.promptCommandSuffix !== undefined
-						? (patch.promptCommandSuffix ?? undefined)
-						: currentPreset.promptCommandSuffix,
-				taskPromptTemplate:
-					patch.taskPromptTemplate ?? currentPreset.taskPromptTemplate,
-			};
-		}
-
 		return {
 			...currentPreset,
 			enabled: patch.enabled ?? currentPreset.enabled,
@@ -111,12 +91,14 @@ export function AgentCard({
 				patch.description !== undefined
 					? (patch.description ?? undefined)
 					: currentPreset.description,
+			command: patch.command ?? currentPreset.command,
+			promptCommand: patch.promptCommand ?? currentPreset.promptCommand,
+			promptCommandSuffix:
+				patch.promptCommandSuffix !== undefined
+					? (patch.promptCommandSuffix ?? undefined)
+					: currentPreset.promptCommandSuffix,
 			taskPromptTemplate:
 				patch.taskPromptTemplate ?? currentPreset.taskPromptTemplate,
-			model:
-				patch.model !== undefined
-					? (patch.model ?? undefined)
-					: currentPreset.model,
 		};
 	};
 

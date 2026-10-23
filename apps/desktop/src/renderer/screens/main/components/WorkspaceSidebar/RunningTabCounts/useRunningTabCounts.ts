@@ -11,15 +11,14 @@ export interface RunningTabCounts {
 
 /**
  * Classify a tab the same way the tab strip does (see GroupItem): a tab counts
- * as "claude" if it has a chat pane or a terminal running the Claude CLI,
- * otherwise "terminal" if it has any terminal pane.
+ * as "claude" if it has a terminal running the Claude CLI, otherwise
+ * "terminal" if it has any terminal pane.
  */
 function classifyTab(panes: Pane[]): "claude" | "terminal" | null {
-	const hasChat = panes.some((p) => p.type === "chat");
 	const hasClaudeTerminal = panes.some(
 		(p) => p.type === "terminal" && p.runningClaude,
 	);
-	if (hasChat || hasClaudeTerminal) return "claude";
+	if (hasClaudeTerminal) return "claude";
 	if (panes.some((p) => p.type === "terminal")) return "terminal";
 	return null;
 }

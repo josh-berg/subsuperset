@@ -44,7 +44,6 @@ import {
 import { HiCheck, HiChevronUpDown } from "react-icons/hi2";
 import { LuFolderGit, LuFolderOpen, LuGitPullRequest } from "react-icons/lu";
 import { AgentSelect } from "renderer/components/AgentSelect";
-import { LinkedIssuePill } from "renderer/components/Chat/ChatInterface/components/ChatInputFooter/components/LinkedIssuePill";
 import { useAgentLaunchPreferences } from "renderer/hooks/useAgentLaunchPreferences";
 import { PLATFORM } from "renderer/hotkeys";
 import { electronTrpc } from "renderer/lib/electron-trpc";
@@ -69,6 +68,7 @@ import type { LinkedPR } from "../../NewWorkspaceModalDraftContext";
 import { useNewWorkspaceModalDraft } from "../../NewWorkspaceModalDraftContext";
 import { GitHubIssueLinkCommand } from "./components/GitHubIssueLinkCommand";
 import { LinkedGitHubIssuePill } from "./components/LinkedGitHubIssuePill";
+import { LinkedIssuePill } from "./components/LinkedIssuePill";
 import { LinkedPRPill } from "./components/LinkedPRPill";
 import { PRLinkCommand } from "./components/PRLinkCommand";
 import type { OpenableWorktreeAction } from "./utils/resolveOpenableWorktrees";
@@ -580,11 +580,7 @@ function PromptGroupInner({
 	const plusMenuRef = useRef<HTMLDivElement>(null);
 	const submitStartedRef = useRef(false);
 	const trimmedPrompt = prompt.trim();
-	const firstIssueSlug = linkedIssues[0]?.slug ?? null;
 
-	// AI branch name generation (on submit only)
-	const generateBranchNameMutation =
-		electronTrpc.workspaces.generateBranchName.useMutation();
 	useEffect(() => {
 		if (isNewWorkspaceModalOpen) {
 			submitStartedRef.current = false;
@@ -685,11 +681,10 @@ function PromptGroupInner({
 				selectedAgent,
 				prompt,
 				initialFiles: files,
-				taskSlug: firstIssueSlug || undefined,
 				configsById: agentConfigsById,
 			});
 		},
-		[agentConfigsById, firstIssueSlug, selectedAgent],
+		[agentConfigsById, selectedAgent],
 	);
 
 	const convertBlobUrlToDataUrl = useCallback(
@@ -726,8 +721,6 @@ function PromptGroupInner({
 			workspaceNameEdited && workspaceName.trim()
 				? workspaceName.trim()
 				: trimmedPrompt || "New worktree";
-		const willGenerateAIName =
-			!branchNameEdited && !!trimmedPrompt && !linkedPR;
 		const pendingWorkspaceId = crypto.randomUUID();
 		const detachedFiles = attachments.takeFiles();
 
@@ -735,61 +728,11 @@ function PromptGroupInner({
 			id: pendingWorkspaceId,
 			projectId,
 			name: displayName,
-			status: willGenerateAIName ? "generating-branch" : "preparing",
+			status: "preparing",
 		});
 		closeAndResetDraft();
 
 		try {
-			let aiBranchName: string | null = null;
-			if (willGenerateAIName) {
-				let timeoutId: NodeJS.Timeout | null = null;
-				try {
-					const AI_GENERATION_TIMEOUT_MS = 30000;
-					const timeoutPromise = new Promise<never>((_, reject) => {
-						timeoutId = setTimeout(
-							() => reject(new Error("AI generation timeout")),
-							AI_GENERATION_TIMEOUT_MS,
-						);
-					});
-
-					const result = await Promise.race([
-						generateBranchNameMutation.mutateAsync({
-							prompt: trimmedPrompt,
-							projectId,
-						}),
-						timeoutPromise,
-					]);
-
-					if (timeoutId) clearTimeout(timeoutId);
-					aiBranchName = result.branchName;
-				} catch (error) {
-					if (timeoutId) clearTimeout(timeoutId);
-
-					const errorMessage =
-						error instanceof Error ? error.message : String(error);
-					if (errorMessage.includes("timeout")) {
-						console.warn("[PromptGroup] AI generation timeout");
-						toast.info("Using random branch name (AI generation timed out)");
-					} else if (
-						errorMessage.toLowerCase().includes("auth") ||
-						errorMessage.includes("401") ||
-						errorMessage.includes("403")
-					) {
-						console.error("[PromptGroup] AI auth error:", error);
-						toast.error(
-							"AI authentication failed. Please check your AI settings.",
-						);
-						clearPendingWorkspace(pendingWorkspaceId);
-						return;
-					} else {
-						console.warn("[PromptGroup] AI generation failed:", error);
-						toast.info("Using random branch name (AI generation unavailable)");
-					}
-				} finally {
-					setPendingWorkspaceStatus(pendingWorkspaceId, "preparing");
-				}
-			}
-
 			let convertedFiles: ConvertedFile[] = [];
 			if (detachedFiles.length > 0) {
 				try {
@@ -973,7 +916,7 @@ ${sanitizeText(truncatedBody)}`;
 								: undefined,
 						prompt: trimmedPrompt || undefined,
 						branchName:
-							(branchNameEdited && branchName.trim()
+							branchNameEdited && branchName.trim()
 								? sanitizeBranchNameWithMaxLength(
 										branchName.trim(),
 										undefined,
@@ -981,7 +924,7 @@ ${sanitizeText(truncatedBody)}`;
 											preserveCase: true,
 										},
 									)
-								: aiBranchName) || undefined,
+								: undefined,
 						compareBaseBranch: compareBaseBranch || undefined,
 					},
 					{
@@ -1019,7 +962,6 @@ ${sanitizeText(truncatedBody)}`;
 		convertBlobUrlToDataUrl,
 		createFromPr,
 		createWorkspace,
-		generateBranchNameMutation,
 		linkedIssues,
 		linkedPR,
 		projectId,

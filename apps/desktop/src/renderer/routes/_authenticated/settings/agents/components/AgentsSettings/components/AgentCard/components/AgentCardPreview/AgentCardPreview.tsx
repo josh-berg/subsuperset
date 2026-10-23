@@ -56,7 +56,7 @@ export function AgentCardPreview({
 					)}
 					<div className="space-y-1">
 						<p className="text-xs font-medium text-muted-foreground">
-							{preset.kind === "terminal" ? "Task Launch" : "Chat Launch"}
+							Task Launch
 						</p>
 						<pre className="whitespace-pre-wrap rounded-md bg-background p-3 text-xs">
 							{previewTaskCommand}

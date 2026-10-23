@@ -19,7 +19,6 @@ import {
 	type FileViewerState,
 } from "shared/tabs-types";
 import type {
-	AddChatTabOptions,
 	AddFileViewerPaneOptions,
 	FileViewerReuseScope,
 	Pane,
@@ -242,25 +241,6 @@ export const createFileViewerPane = (
 	};
 };
 
-export const createChatPane = (
-	tabId: string,
-	options?: AddChatTabOptions,
-): Pane => {
-	const id = generateId("pane");
-	const sessionId = crypto.randomUUID();
-
-	return {
-		id,
-		tabId,
-		type: "chat",
-		name: "New Chat",
-		chat: {
-			sessionId,
-			launchConfig: options?.launchConfig ?? null,
-		},
-	};
-};
-
 /**
  * Options for creating a browser pane
  */
@@ -332,24 +312,6 @@ export const createBrowserTabWithPane = (
 	const tab: Tab = {
 		id: tabId,
 		name: `Browser ${workspaceTabs.filter((t) => t.name.startsWith("Browser")).length + 1}`,
-		workspaceId,
-		layout: pane.id,
-		createdAt: Date.now(),
-	};
-
-	return { tab, pane };
-};
-
-export const createChatTabWithPane = (
-	workspaceId: string,
-	options?: AddChatTabOptions,
-): { tab: Tab; pane: Pane } => {
-	const tabId = generateId("tab");
-	const pane = createChatPane(tabId, options);
-
-	const tab: Tab = {
-		id: tabId,
-		name: "New Chat",
 		workspaceId,
 		layout: pane.id,
 		createdAt: Date.now(),

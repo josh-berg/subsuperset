@@ -21,16 +21,11 @@ describe("resolveAgentConfigs", () => {
 						promptCommand: "claude-custom --prompt",
 						enabled: false,
 					},
-					{
-						id: "superset-chat",
-						taskPromptTemplate: "Chat {{slug}}",
-					},
 				],
 			},
 		});
 
 		const claude = presets.find((preset) => preset.id === "claude");
-		const chat = presets.find((preset) => preset.id === "superset-chat");
 
 		expect(claude).toMatchObject({
 			id: "claude",
@@ -43,12 +38,6 @@ describe("resolveAgentConfigs", () => {
 		expect(claude?.overriddenFields).toEqual(
 			expect.arrayContaining(["label", "command", "promptCommand", "enabled"]),
 		);
-
-		expect(chat).toMatchObject({
-			id: "superset-chat",
-			kind: "chat",
-			taskPromptTemplate: "Chat {{slug}}",
-		});
 	});
 
 	test("includes pi as a built-in terminal config", () => {

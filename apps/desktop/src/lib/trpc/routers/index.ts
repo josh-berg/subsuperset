@@ -5,15 +5,12 @@ import { createAuthRouter } from "./auth";
 import { createBrowserRouter } from "./browser/browser";
 import { createBrowserHistoryRouter } from "./browser-history";
 import { createChangesRouter } from "./changes";
-import { createChatRuntimeServiceRouter } from "./chat-runtime-service";
-import { createChatServiceRouter } from "./chat-service";
 import { createClaudeCostsRouter } from "./claude-costs";
 import { createConfigRouter } from "./config";
 import { createExternalRouter } from "./external";
 import { createFilesystemRouter } from "./filesystem";
 import { createHostServiceManagerRouter } from "./host-service-manager";
 import { createMenuRouter } from "./menu";
-import { createModelProvidersRouter } from "./model-providers";
 import { createNotificationsRouter } from "./notifications";
 import { createPermissionsRouter } from "./permissions";
 import { createPortsRouter } from "./ports";
@@ -30,13 +27,10 @@ import { createWorkspacesRouter } from "./workspaces";
 
 export const createAppRouter = (getWindow: () => BrowserWindow | null) => {
 	return router({
-		chatRuntimeService: createChatRuntimeServiceRouter(),
-		chatService: createChatServiceRouter(),
 		analytics: createAnalyticsRouter(),
 		browser: createBrowserRouter(),
 		browserHistory: createBrowserHistoryRouter(),
 		auth: createAuthRouter(),
-		modelProviders: createModelProvidersRouter(),
 		window: createWindowRouter(getWindow),
 		projects: createProjectsRouter(getWindow),
 		featureProjects: createFeatureProjectsRouter(),

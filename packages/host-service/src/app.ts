@@ -11,11 +11,6 @@ import { EventBus, registerEventBusRoute } from "./events";
 import type { ApiAuthProvider } from "./providers/auth";
 import { LocalGitCredentialProvider } from "./providers/git";
 import type { HostAuthProvider } from "./providers/host-auth";
-import {
-	LocalModelProvider,
-	type ModelProviderRuntimeResolver,
-} from "./providers/model-providers";
-import { ChatRuntimeManager } from "./runtime/chat";
 import { WorkspaceFilesystemManager } from "./runtime/filesystem";
 import type { GitCredentialProvider } from "./runtime/git";
 import { createGitFactory } from "./runtime/git";
@@ -25,7 +20,6 @@ import { appRouter } from "./trpc/router";
 
 export interface CreateAppOptions {
 	credentials?: GitCredentialProvider;
-	modelProviderRuntimeResolver?: ModelProviderRuntimeResolver;
 	auth?: ApiAuthProvider;
 	hostAuth?: HostAuthProvider;
 	dbPath?: string;
@@ -47,8 +41,6 @@ export function createApp(options?: CreateAppOptions): CreateAppResult {
 	const dbPath = options?.dbPath ?? join(homedir(), ".superset", "host.db");
 	const db = createDb(dbPath);
 	const git = createGitFactory(credentials);
-	const modelProviderRuntimeResolver =
-		options?.modelProviderRuntimeResolver ?? new LocalModelProvider();
 	const github = async () => {
 		const token = await credentials.getToken("github.com");
 		if (!token) {
@@ -65,13 +57,8 @@ export function createApp(options?: CreateAppOptions): CreateAppResult {
 	});
 	pullRequestRuntime.start();
 	const filesystem = new WorkspaceFilesystemManager({ db });
-	const chatRuntime = new ChatRuntimeManager({
-		db,
-		runtimeResolver: modelProviderRuntimeResolver,
-	});
 
 	const runtime = {
-		chat: chatRuntime,
 		filesystem,
 		pullRequests: pullRequestRuntime,
 	};

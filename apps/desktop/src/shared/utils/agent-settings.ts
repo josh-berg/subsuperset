@@ -10,8 +10,6 @@ import {
 	type AgentDefinition,
 	type AgentDefinitionId,
 	BUILTIN_AGENT_DEFINITIONS,
-	type ChatAgentDefinition,
-	isTerminalAgentDefinition,
 	type TerminalAgentDefinition,
 } from "@superset/shared/agent-catalog";
 import type { TaskInput } from "@superset/shared/agent-command";
@@ -22,7 +20,6 @@ import {
 	type PromptTransport,
 } from "@superset/shared/agent-prompt-launch";
 import {
-	DEFAULT_CHAT_TASK_PROMPT_TEMPLATE,
 	DEFAULT_TERMINAL_TASK_PROMPT_TEMPLATE,
 	getSupportedTaskPromptVariables,
 	renderTaskPromptTemplate,
@@ -39,14 +36,6 @@ const TERMINAL_OVERRIDE_FIELDS = [
 	"taskPromptTemplate",
 ] as const satisfies readonly AgentPresetField[];
 
-const CHAT_OVERRIDE_FIELDS = [
-	"enabled",
-	"label",
-	"description",
-	"taskPromptTemplate",
-	"model",
-] as const satisfies readonly AgentPresetField[];
-
 const EMPTY_AGENT_PRESET_OVERRIDE_ENVELOPE: AgentPresetOverrideEnvelope = {
 	version: 1,
 	presets: [],
@@ -60,14 +49,7 @@ export type TerminalResolvedAgentConfig = Omit<
 	overriddenFields: AgentPresetField[];
 };
 
-export type ChatResolvedAgentConfig = Omit<ChatAgentDefinition, "id"> & {
-	id: AgentDefinitionId;
-	overriddenFields: AgentPresetField[];
-};
-
-export type ResolvedAgentConfig =
-	| TerminalResolvedAgentConfig
-	| ChatResolvedAgentConfig;
+export type ResolvedAgentConfig = TerminalResolvedAgentConfig;
 
 export type AgentPresetPatch = Partial<{
 	enabled: boolean;
@@ -77,7 +59,6 @@ export type AgentPresetPatch = Partial<{
 	promptCommand: string;
 	promptCommandSuffix: string | null;
 	taskPromptTemplate: string;
-	model: string | null;
 }>;
 
 export type CustomAgentDefinitionPatch = Partial<{
@@ -249,16 +230,12 @@ export function deleteCustomAgentDefinition({
 
 function getOverriddenFields(
 	override: AgentPresetOverride | undefined,
-	definition: AgentDefinition,
 ): AgentPresetField[] {
 	if (!override) return [];
 
-	const fields =
-		definition.kind === "terminal"
-			? TERMINAL_OVERRIDE_FIELDS
-			: CHAT_OVERRIDE_FIELDS;
-
-	return fields.filter((field) => Object.hasOwn(override, field));
+	return TERMINAL_OVERRIDE_FIELDS.filter((field) =>
+		Object.hasOwn(override, field),
+	);
 }
 
 function resolveDescription(
@@ -283,50 +260,25 @@ function resolvePromptCommandSuffix(
 	return override.promptCommandSuffix ?? undefined;
 }
 
-function resolveModel(
-	model: string | undefined,
-	override: AgentPresetOverride | undefined,
-): string | undefined {
-	if (!override || !Object.hasOwn(override, "model")) {
-		return model;
-	}
-
-	return override.model?.trim() || undefined;
-}
-
 function resolveAgentConfig(
 	definition: AgentDefinition,
 	override: AgentPresetOverride | undefined,
 ): ResolvedAgentConfig {
-	if (isTerminalAgentDefinition(definition)) {
-		return {
-			...definition,
-			id: definition.id as AgentDefinitionId,
-			label: override?.label ?? definition.label,
-			description: resolveDescription(definition.description, override),
-			enabled: override?.enabled ?? definition.enabled,
-			command: override?.command ?? definition.command,
-			promptCommand: override?.promptCommand ?? definition.promptCommand,
-			promptCommandSuffix: resolvePromptCommandSuffix(
-				definition.promptCommandSuffix,
-				override,
-			),
-			taskPromptTemplate:
-				override?.taskPromptTemplate ?? definition.taskPromptTemplate,
-			overriddenFields: getOverriddenFields(override, definition),
-		};
-	}
-
 	return {
 		...definition,
 		id: definition.id as AgentDefinitionId,
 		label: override?.label ?? definition.label,
 		description: resolveDescription(definition.description, override),
 		enabled: override?.enabled ?? definition.enabled,
+		command: override?.command ?? definition.command,
+		promptCommand: override?.promptCommand ?? definition.promptCommand,
+		promptCommandSuffix: resolvePromptCommandSuffix(
+			definition.promptCommandSuffix,
+			override,
+		),
 		taskPromptTemplate:
 			override?.taskPromptTemplate ?? definition.taskPromptTemplate,
-		model: resolveModel(definition.model, override),
-		overriddenFields: getOverriddenFields(override, definition),
+		overriddenFields: getOverriddenFields(override),
 	};
 }
 
@@ -442,12 +394,7 @@ export function buildDefaultTerminalTaskPrompt(task: TaskInput): string {
 	return renderTaskPromptTemplate(DEFAULT_TERMINAL_TASK_PROMPT_TEMPLATE, task);
 }
 
-export function buildDefaultChatTaskPrompt(task: TaskInput): string {
-	return renderTaskPromptTemplate(DEFAULT_CHAT_TASK_PROMPT_TEMPLATE, task);
-}
-
 export {
-	DEFAULT_CHAT_TASK_PROMPT_TEMPLATE,
 	DEFAULT_TERMINAL_TASK_PROMPT_TEMPLATE,
 	getSupportedTaskPromptVariables,
 	renderTaskPromptTemplate,
@@ -535,12 +482,6 @@ export function createOverrideEnvelopeWithPatch({
 				shouldPersist,
 			);
 		}
-	} else if (hasField("model")) {
-		const shouldPersist =
-			patch.model === null
-				? definition.model !== undefined
-				: patch.model !== definition.model;
-		setOrDelete("model", patch.model ?? undefined, shouldPersist);
 	}
 
 	const fields = Object.keys(next).filter((field) => field !== "id");

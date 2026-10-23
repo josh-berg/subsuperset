@@ -44,36 +44,11 @@ describe("normalizeAgentLaunchRequest", () => {
 		});
 	});
 
-	it("maps legacy chat launch params", () => {
-		const normalized = normalizeAgentLaunchRequest({
-			workspaceId: "ws-1",
-			openChatPane: true,
-			paneId: "pane-1",
-			chatLaunchConfig: {
-				initialPrompt: "summarize this task",
-				model: "anthropic/claude-sonnet-4",
-				retryCount: 3,
-			},
-		});
-
-		expect(normalized).toEqual({
-			kind: "chat",
-			workspaceId: "ws-1",
-			agentType: "superset-chat",
-			chat: {
-				paneId: "pane-1",
-				initialPrompt: "summarize this task",
-				model: "anthropic/claude-sonnet-4",
-				retryCount: 3,
-			},
-		});
-	});
-
 	it("throws when legacy request has no launch payload", () => {
 		expect(() =>
 			normalizeAgentLaunchRequest({
 				workspaceId: "ws-1",
 			}),
-		).toThrow("missing terminal command or chat launch config");
+		).toThrow("missing terminal command");
 	});
 });

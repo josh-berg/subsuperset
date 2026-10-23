@@ -70,8 +70,6 @@ export function GroupItem({
 	const displayName = getTabDisplayName(tab);
 	const tabIcon = useTabsStore((s) => {
 		const tabPanes = Object.values(s.panes).filter((p) => p.tabId === tab.id);
-		const hasChat = tabPanes.some((p) => p.type === "chat");
-		if (hasChat) return "claude" as const;
 		const hasClaudeTerminal = tabPanes.some(
 			(p) => p.type === "terminal" && p.runningClaude,
 		);

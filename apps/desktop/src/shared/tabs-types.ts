@@ -8,12 +8,7 @@ import type { ChangeCategory } from "./changes-types";
 /**
  * Pane types that can be displayed within a tab
  */
-export type PaneType =
-	| "terminal"
-	| "webview"
-	| "file-viewer"
-	| "chat"
-	| "devtools";
+export type PaneType = "terminal" | "webview" | "file-viewer" | "devtools";
 
 /**
  * Pane status for agent lifecycle indicators
@@ -139,7 +134,6 @@ export interface Pane {
 	cwd?: string | null; // Current working directory
 	cwdConfirmed?: boolean; // True if cwd confirmed via OSC-7, false if seeded
 	fileViewer?: FileViewerState; // For file-viewer panes
-	chat?: ChatPaneState; // For chat panes
 	browser?: BrowserPaneState; // For browser (webview) panes
 	devtools?: DevToolsPaneState; // For devtools panes
 	workspaceRun?: {
@@ -152,25 +146,6 @@ export interface Pane {
 }
 
 export type WorkspaceRunState = NonNullable<Pane["workspaceRun"]>["state"];
-
-export interface ChatLaunchConfig {
-	initialPrompt?: string;
-	draftInput?: string;
-	initialFiles?: Array<{
-		data: string;
-		mediaType: string;
-		filename?: string;
-	}>;
-	metadata?: {
-		model?: string;
-	};
-	retryCount?: number;
-}
-
-export interface ChatPaneState {
-	sessionId: string | null;
-	launchConfig?: ChatLaunchConfig | null;
-}
 
 /**
  * Single entry in the browser pane's navigation history

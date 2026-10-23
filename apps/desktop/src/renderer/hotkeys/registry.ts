@@ -220,12 +220,6 @@ export const HOTKEYS_REGISTRY = {
 		category: "Layout",
 		description: "Split the current pane along its longer side",
 	},
-	SPLIT_WITH_CHAT: {
-		key: { mac: "meta+shift+e", windows: "ctrl+alt+e", linux: "ctrl+alt+e" },
-		label: "Split with New Chat",
-		category: "Layout",
-		description: "Split the current pane and open a new chat pane",
-	},
 	SPLIT_WITH_BROWSER: {
 		key: {
 			mac: "meta+shift+s",
@@ -266,24 +260,9 @@ export const HOTKEYS_REGISTRY = {
 		category: "Terminal",
 		description: "Search text in the rendered file viewer",
 	},
-	FIND_IN_CHAT: {
-		key: { mac: "meta+f", windows: "ctrl+shift+f", linux: "ctrl+shift+f" },
-		label: "Find in Chat",
-		category: "Terminal",
-		description: "Search text in the active chat",
-	},
 	NEW_GROUP: {
 		key: { mac: "meta+t", windows: "ctrl+shift+t", linux: "ctrl+shift+t" },
 		label: "New Terminal",
-		category: "Terminal",
-	},
-	NEW_CHAT: {
-		key: {
-			mac: "meta+shift+t",
-			windows: "ctrl+shift+alt+t",
-			linux: "ctrl+shift+alt+t",
-		},
-		label: "New Chat",
 		category: "Terminal",
 	},
 	REOPEN_TAB: {
@@ -510,23 +489,6 @@ export const HOTKEYS_REGISTRY = {
 	OPEN_PRESET_9: {
 		key: { mac: "ctrl+9", windows: "ctrl+9", linux: "ctrl+9" },
 		label: "Open Preset 9",
-		category: "Terminal",
-	},
-
-	// Chat
-	FOCUS_CHAT_INPUT: {
-		key: { mac: "meta+j", windows: "ctrl+shift+j", linux: "ctrl+shift+j" },
-		label: "Focus Chat Input",
-		category: "Terminal",
-	},
-	CHAT_ADD_ATTACHMENT: {
-		key: { mac: "meta+u", windows: "ctrl+shift+u", linux: "ctrl+shift+u" },
-		label: "Add Attachment",
-		category: "Terminal",
-	},
-	CHAT_LINK_ISSUE: {
-		key: { mac: "meta+i", windows: "ctrl+shift+i", linux: "ctrl+shift+i" },
-		label: "Link Issue",
 		category: "Terminal",
 	},
 

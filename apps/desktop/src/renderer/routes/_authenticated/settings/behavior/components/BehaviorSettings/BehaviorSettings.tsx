@@ -247,8 +247,8 @@ export function BehaviorSettings({ visibleItems }: BehaviorSettingsProps) {
 								Open links in app browser
 							</Label>
 							<p className="text-xs text-muted-foreground">
-								Open links from chat and terminal in the built-in browser
-								instead of your default browser
+								Open links from the terminal in the built-in browser instead of
+								your default browser
 							</p>
 						</div>
 						<Switch

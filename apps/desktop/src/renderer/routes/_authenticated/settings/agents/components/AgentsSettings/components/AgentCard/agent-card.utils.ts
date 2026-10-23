@@ -22,20 +22,10 @@ export function getPreviewPrompt(preset: ResolvedAgentConfig): string {
 }
 
 export function getPreviewNoPromptCommand(preset: ResolvedAgentConfig): string {
-	if (preset.kind !== "terminal") {
-		return "Superset Chat opens a chat pane without a shell command.";
-	}
-
 	return preset.command.trim() || "No command configured.";
 }
 
 export function getPreviewTaskCommand(preset: ResolvedAgentConfig): string {
-	if (preset.kind !== "terminal") {
-		return preset.model
-			? `Superset Chat opens with model ${preset.model}.`
-			: "Superset Chat opens with the rendered task prompt.";
-	}
-
 	return (
 		buildFileCommandFromAgentConfig({
 			filePath: `.superset/task-${SAMPLE_TASK.slug}.md`,
@@ -54,17 +44,13 @@ export function getAgentFieldValue(
 		case "description":
 			return preset.description ?? "";
 		case "command":
-			return preset.kind === "terminal" ? preset.command : "";
+			return preset.command;
 		case "promptCommand":
-			return preset.kind === "terminal" ? preset.promptCommand : "";
+			return preset.promptCommand;
 		case "promptCommandSuffix":
-			return preset.kind === "terminal"
-				? (preset.promptCommandSuffix ?? "")
-				: "";
+			return preset.promptCommandSuffix ?? "";
 		case "taskPromptTemplate":
 			return preset.taskPromptTemplate;
-		case "model":
-			return preset.kind === "chat" ? (preset.model ?? "") : "";
 	}
 }
 
@@ -86,19 +72,11 @@ export function buildAgentFieldPatch({
 		case "description":
 			return { patch: { description: value || null } };
 		case "command":
-			if (preset.kind !== "terminal") {
-				return { error: "Command is only available for terminal agents." };
-			}
 			if (!value.trim()) {
 				return { error: "Command is required for terminal agents." };
 			}
 			return { patch: { command: value } };
 		case "promptCommand":
-			if (preset.kind !== "terminal") {
-				return {
-					error: "Prompt command is only available for terminal agents.",
-				};
-			}
 			if (!value.trim()) {
 				return preset.source === "user"
 					? { patch: { promptCommand: "" } }
@@ -106,11 +84,6 @@ export function buildAgentFieldPatch({
 			}
 			return { patch: { promptCommand: value } };
 		case "promptCommandSuffix":
-			if (preset.kind !== "terminal") {
-				return {
-					error: "Prompt command suffix is only available for terminal agents.",
-				};
-			}
 			return { patch: { promptCommandSuffix: value || null } };
 		case "taskPromptTemplate": {
 			if (!value.trim()) {
@@ -124,10 +97,5 @@ export function buildAgentFieldPatch({
 			}
 			return { patch: { taskPromptTemplate: value } };
 		}
-		case "model":
-			if (preset.kind !== "chat") {
-				return { error: "Model override is only available for chat agents." };
-			}
-			return { patch: { model: value || null } };
 	}
 }

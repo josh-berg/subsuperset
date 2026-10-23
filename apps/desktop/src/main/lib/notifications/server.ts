@@ -92,7 +92,6 @@ app.get("/hook/complete", (req, res) => {
 		paneId as string | undefined,
 		tabId as string | undefined,
 		workspaceId as string | undefined,
-		sessionId as string | undefined,
 	);
 
 	const event: AgentLifecycleEvent = {

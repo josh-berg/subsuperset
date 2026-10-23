@@ -114,9 +114,6 @@ export function normalizeAgentPresetPatch({
 			const promptCommandSuffix = patch.promptCommandSuffix?.trim() ?? "";
 			normalized.promptCommandSuffix = promptCommandSuffix || null;
 		}
-	} else if (patch.model !== undefined) {
-		const model = patch.model?.trim() ?? "";
-		normalized.model = model || null;
 	}
 
 	if (Object.keys(normalized).length === 0) {
