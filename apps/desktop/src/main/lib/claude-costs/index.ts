@@ -21,6 +21,7 @@ export interface DailyUsage {
 export interface ClaudeCostSnapshot {
 	todayCostUSD: number;
 	weekCostUSD: number;
+	monthCostUSD: number; // since the 1st of the current month, local time
 	todayInputTokens: number;
 	todayCacheCreationTokens: number;
 	todayCacheReadTokens: number;
@@ -57,6 +58,7 @@ function buildEmptySnapshot(now: number): ClaudeCostSnapshot {
 	return {
 		todayCostUSD: 0,
 		weekCostUSD: 0,
+		monthCostUSD: 0,
 		todayInputTokens: 0,
 		todayCacheCreationTokens: 0,
 		todayCacheReadTokens: 0,
@@ -80,7 +82,15 @@ export async function collectClaudeCosts(
 	// Build a YYYY-MM-DD string for 7 days ago
 	const sevenDaysAgo = new Date(now);
 	sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
-	const sinceKey = localDateString(sevenDaysAgo.getTime());
+
+	// The month total needs data back to the 1st, which may be earlier or later
+	// than the 7-day window, so fetch from whichever is older.
+	const nowDate = new Date(now);
+	const monthStart = new Date(nowDate.getFullYear(), nowDate.getMonth(), 1);
+	const monthStartKey = localDateString(monthStart.getTime());
+	const sinceKey = localDateString(
+		Math.min(sevenDaysAgo.getTime(), monthStart.getTime()),
+	);
 
 	// Always fetch live pricing from LiteLLM so new models are priced correctly.
 	let dailyData: Awaited<ReturnType<typeof loadDailyUsageData>> = [];
@@ -116,6 +126,12 @@ export async function collectClaudeCosts(
 		});
 	}
 
+	// Month-to-date: every day since the 1st (dates are YYYY-MM-DD, so they
+	// compare correctly as strings)
+	const monthCostUSD = dailyData
+		.filter((e) => e.date >= monthStartKey)
+		.reduce((sum, e) => sum + e.totalCost, 0);
+
 	// Today's data
 	const todayEntry = dailyData.find((e) => e.date === todayKey);
 	const todayCostUSD = todayEntry?.totalCost ?? 0;
@@ -146,6 +162,7 @@ export async function collectClaudeCosts(
 	const snapshot: ClaudeCostSnapshot = {
 		todayCostUSD,
 		weekCostUSD,
+		monthCostUSD,
 		todayInputTokens,
 		todayCacheCreationTokens,
 		todayCacheReadTokens,

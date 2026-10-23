@@ -22,6 +22,7 @@ const dailyUsageSchema = z.object({
 export const claudeCostSnapshotSchema = z.object({
 	todayCostUSD: z.number().min(0),
 	weekCostUSD: z.number().min(0),
+	monthCostUSD: z.number().min(0),
 	todayInputTokens: z.number().int().min(0),
 	todayCacheCreationTokens: z.number().int().min(0),
 	todayCacheReadTokens: z.number().int().min(0),

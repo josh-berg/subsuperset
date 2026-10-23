@@ -6,6 +6,7 @@ import {
 	HiOutlineCurrencyDollar,
 	HiOutlineExclamationTriangle,
 } from "react-icons/hi2";
+import { LuCalendar, LuCalendarDays, LuSun } from "react-icons/lu";
 import { electronTrpc } from "renderer/lib/electron-trpc";
 import type { DailyUsage, ModelUsage } from "./types";
 
@@ -156,7 +157,28 @@ export function ClaudeCosts() {
 		refetchInterval: 600_000,
 	});
 
-	const todayCost = snapshot?.todayCostUSD ?? 0;
+	const pillPeriods = snapshot
+		? [
+				{
+					key: "day",
+					label: "Today",
+					Icon: LuSun,
+					cost: snapshot.todayCostUSD,
+				},
+				{
+					key: "week",
+					label: "Last 7 days",
+					Icon: LuCalendarDays,
+					cost: snapshot.weekCostUSD,
+				},
+				{
+					key: "month",
+					label: "This month",
+					Icon: LuCalendar,
+					cost: snapshot.monthCostUSD,
+				},
+			]
+		: [];
 
 	return (
 		<Popover open={open} onOpenChange={setOpen}>
@@ -168,10 +190,23 @@ export function ClaudeCosts() {
 							className="no-drag flex items-center gap-1.5 h-6 px-1.5 rounded border border-border/60 bg-secondary/50 hover:bg-secondary hover:border-border transition-all duration-150 ease-out focus:outline-none focus:ring-1 focus:ring-ring"
 							aria-label="Claude API costs"
 						>
-							<HiOutlineCurrencyDollar className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+							<HiOutlineCurrencyDollar
+								className={`h-3.5 w-3.5 shrink-0 text-muted-foreground ${
+									snapshot !== undefined ? "md:hidden" : ""
+								}`}
+							/>
 							{snapshot !== undefined && (
-								<span className="text-xs font-medium tabular-nums text-muted-foreground hidden md:inline">
-									{formatCost(todayCost)}
+								<span className="hidden md:flex items-center gap-2 text-xs font-medium tabular-nums text-muted-foreground">
+									{pillPeriods.map(({ key, label, Icon, cost }) => (
+										<span
+											key={key}
+											className="flex items-center gap-1"
+											title={label}
+										>
+											<Icon className="h-3 w-3 shrink-0 opacity-70" />
+											{formatCost(cost)}
+										</span>
+									))}
 								</span>
 							)}
 						</button>
@@ -184,7 +219,9 @@ export function ClaudeCosts() {
 						showArrow={false}
 						className="md:hidden"
 					>
-						{formatCost(todayCost)}
+						{pillPeriods
+							.map((p) => `${p.label}: ${formatCost(p.cost)}`)
+							.join(" · ")}
 					</TooltipContent>
 				)}
 			</Tooltip>
@@ -208,7 +245,7 @@ export function ClaudeCosts() {
 					</div>
 
 					{snapshot && (
-						<div className="mt-2 grid grid-cols-2 gap-2">
+						<div className="mt-2 grid grid-cols-3 gap-2">
 							<MetricBadge
 								label="Today"
 								value={formatCost(snapshot.todayCostUSD)}
@@ -218,6 +255,11 @@ export function ClaudeCosts() {
 								label="This week"
 								value={formatCost(snapshot.weekCostUSD)}
 								tooltip="Total Claude API cost over the last 7 days."
+							/>
+							<MetricBadge
+								label="This month"
+								value={formatCost(snapshot.monthCostUSD)}
+								tooltip="Total Claude API cost since the 1st of the month (local time)."
 							/>
 						</div>
 					)}
