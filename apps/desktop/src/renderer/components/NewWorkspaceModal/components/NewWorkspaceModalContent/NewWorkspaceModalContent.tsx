@@ -462,13 +462,15 @@ export function NewWorkspaceModalContent({
 	return (
 		<>
 			<div className="flex items-center gap-2 border-b px-2 py-2 shrink-0">
-				<button
-					type="button"
-					onClick={() => setStep("project")}
-					className="flex items-center justify-center size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-				>
-					<LuChevronLeft className="size-4" />
-				</button>
+				{!(skipProjectStep && preSelectedProjectId) && (
+					<button
+						type="button"
+						onClick={() => setStep("project")}
+						className="flex items-center justify-center size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+					>
+						<LuChevronLeft className="size-4" />
+					</button>
+				)}
 				{selectedProject && (
 					<ProjectThumbnail
 						projectId={selectedProject.id}
