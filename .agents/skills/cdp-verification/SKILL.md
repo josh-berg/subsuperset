@@ -63,7 +63,7 @@ and repair auth.
 
 These apply to the Electron desktop app in `apps/desktop` (subsuperset fork, v1 architecture).
 
-1. Launch the dev app with CDP enabled on an unused port: `DESKTOP_AUTOMATION_PORT=9333 bun dev`. The switch is only honored when `NODE_ENV=development` (see `lib/electron-app/factories/app/setup.ts`).
+1. Launch the dev app with CDP enabled on an unused port: `cd apps/desktop && DESKTOP_AUTOMATION_PORT=9333 bun run dev`. Run it from `apps/desktop`: `bun dev` at the repo root goes through turbo, which drops the variable. The switch is only honored when `NODE_ENV=development` (see `lib/electron-app/factories/app/setup.ts`).
 2. Never assume the port. Confirm the Electron process belongs to this checkout (`lsof -nP -iTCP:<port> -sTCP:LISTEN`, then check the PID's command path).
 3. Fetch `http://127.0.0.1:<port>/json/list`, pick the `page` target for the app window, and attach to its `webSocketDebuggerUrl` over a WebSocket (Bun built-in, no deps).
 4. Use `Runtime.evaluate`, `Input.dispatch*Event` and `Page.captureScreenshot` for the journey and evidence. The app uses local auth only; there is no API/DB stack to repair.
