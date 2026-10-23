@@ -3,6 +3,7 @@ import {
 	execFile,
 } from "node:child_process";
 import { promisify } from "node:util";
+import { USER_GIT_ENV_SIMPLE_GIT_OPTIONS } from "@superset/shared/simple-git-options";
 import simpleGit, { type SimpleGit } from "simple-git";
 import { getProcessEnvWithShellPath } from "./shell-env";
 
@@ -22,10 +23,14 @@ export function setGitTaskAbortSignal(signal: AbortSignal | undefined): void {
 	taskAbortSignal = signal;
 }
 
+// Superset is a local Git client, so inherited user Git config/env is expected
+// behavior. simple-git 3.36 blocks these hooks by default; allow them centrally
+// instead of deleting individual env vars and changing Git semantics.
 export async function getSimpleGitWithShellPath(
 	repoPath?: string,
 ): Promise<SimpleGit> {
 	const git = simpleGit({
+		...USER_GIT_ENV_SIMPLE_GIT_OPTIONS,
 		...(repoPath ? { baseDir: repoPath } : {}),
 		config: [GIT_QUOTE_PATH_CONFIG],
 		...(taskAbortSignal ? { abort: taskAbortSignal } : {}),

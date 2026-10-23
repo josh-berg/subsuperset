@@ -8,6 +8,10 @@
 			"types": "./src/constants.ts",
 			"default": "./src/constants.ts"
 		},
+		"./simple-git-options": {
+			"types": "./src/simple-git-options.ts",
+			"default": "./src/simple-git-options.ts"
+		},
 		"./names": {
 			"types": "./src/names/index.ts",
 			"default": "./src/names/index.ts"
