@@ -54,7 +54,8 @@
 		"@durable-streams/state@0.2.1": "patches/@durable-streams%2Fstate@0.2.1.patch",
 		"@xterm/addon-ligatures@0.11.0-beta.310": "patches/@xterm%2Faddon-ligatures@0.11.0-beta.310.patch",
 		"@xterm/addon-webgl@0.20.0-beta.309": "patches/@xterm%2Faddon-webgl@0.20.0-beta.309.patch",
-		"@xterm/xterm@6.1.0-beta.315": "patches/@xterm%2Fxterm@6.1.0-beta.315.patch"
+		"@xterm/xterm@6.1.0-beta.315": "patches/@xterm%2Fxterm@6.1.0-beta.315.patch",
+		"trpc-electron@0.1.2": "patches/trpc-electron@0.1.2.patch"
 	},
 	"trustedDependencies": [
 		"better-sqlite3",
