@@ -7,7 +7,6 @@ import { menuEmitter } from "./menu-events";
 export function createApplicationMenu() {
 	const reloadAccelerator = "CmdOrCtrl+R";
 	const closeAccelerator = "CmdOrCtrl+Shift+Q";
-	const showHotkeysAccelerator = "CmdOrCtrl+/";
 	const openSettingsAccelerator = "CmdOrCtrl+,";
 
 	const template: Electron.MenuItemConstructorOptions[] = [
@@ -83,7 +82,6 @@ export function createApplicationMenu() {
 				{ type: "separator" },
 				{
 					label: "Keyboard Shortcuts",
-					accelerator: showHotkeysAccelerator,
 					click: () => {
 						menuEmitter.emit("open-settings", "keyboard");
 					},
